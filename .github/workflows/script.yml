@@ -2,7 +2,7 @@ name: Deploy Laravel to IONOS via SFTP
 
 on:
   push:
-    branches: [ "main" ]     # change if you deploy from another branch
+    branches: ["main"]         # change if you deploy from a different branch
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---- PHP / Composer build (server won't run composer) ----
+      # ---- Build Laravel on the runner (Composer) ----
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -26,19 +26,16 @@ jobs:
         with:
           path: ~/.composer/cache/files
           key: composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            composer-
+          restore-keys: composer-
 
-      - name: Install Composer dependencies (prod)
+      - name: Install Composer deps (prod)
         run: |
           composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
-          # ensure needed dirs exist in repo so they are uploaded
           mkdir -p storage/framework/{cache,sessions,views}
           mkdir -p bootstrap/cache
-          # never ship cached config/routes from local build
           rm -f bootstrap/cache/*.php || true
 
-      # ---- (Optional) If you build assets here, add Node steps ----
+      # ---- (Optional) Node build if you have assets in this repo ----
       # - name: Setup Node
       #   uses: actions/setup-node@v4
       #   with:
@@ -48,18 +45,20 @@ jobs:
       #     npm ci
       #     npm run build
 
-      # ---- SFTP Deploy to IONOS ----
-      - name: SFTP Deploy
-        uses: wlixcc/SFTP-Deploy-Action@v1.6
+      # ---- SFTP deploy (uses lftp, supports SFTP) ----
+      - name: Deploy via SFTP
+        uses: SamKirkland/FTP-Deploy-Action@v4
         with:
-          server: ${{ secrets.SFTP_HOST }}
-          port: ${{ secrets.SFTP_PORT }}
+          server: sftp://${{ secrets.SFTP_HOST }}
           username: ${{ secrets.SFTP_USERNAME }}
           password: ${{ secrets.SFTP_PASSWORD }}
-          local_path: .                       # Laravel at repo root
-          remote_path: ${{ secrets.REMOTE_PATH }}   # e.g., /backend
-          sftp_only: true
-          # Exclude files that must stay server-side or are unnecessary
+          local-dir: ./
+          server-dir: ${{ secrets.REMOTE_PATH }}
+          protocol: sftp
+          port: 22
+          # safer defaults
+          dry-run: false
+          dangerous-clean-slate: false
           exclude: |
             **/.git*
             **/.github/**
@@ -70,13 +69,3 @@ jobs:
             storage/framework/cache/**
             storage/framework/sessions/**
             storage/framework/views/**
-
-      # (Optional) Verify upload by listing a few remote items (some hosts block this)
-      # - name: Post-deploy check (list)
-      #   uses: appleboy/ssh-action@v1
-      #   with:
-      #     host: ${{ secrets.SFTP_HOST }}
-      #     username: ${{ secrets.SFTP_USERNAME }}
-      #     password: ${{ secrets.SFTP_PASSWORD }}
-      #     port: ${{ secrets.SFTP_PORT }}
-      #     script: ls -la ${{ secrets.REMOTE_PATH }}
