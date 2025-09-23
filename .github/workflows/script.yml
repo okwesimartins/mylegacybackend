@@ -1,0 +1,82 @@
+name: Deploy Laravel to IONOS via SFTP
+
+on:
+  push:
+    branches: [ "main" ]     # change if you deploy from another branch
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---- PHP / Composer build (server won't run composer) ----
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+          tools: composer
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            composer-
+
+      - name: Install Composer dependencies (prod)
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          # ensure needed dirs exist in repo so they are uploaded
+          mkdir -p storage/framework/{cache,sessions,views}
+          mkdir -p bootstrap/cache
+          # never ship cached config/routes from local build
+          rm -f bootstrap/cache/*.php || true
+
+      # ---- (Optional) If you build assets here, add Node steps ----
+      # - name: Setup Node
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 20
+      # - name: Build assets
+      #   run: |
+      #     npm ci
+      #     npm run build
+
+      # ---- SFTP Deploy to IONOS ----
+      - name: SFTP Deploy
+        uses: wlixcc/SFTP-Deploy-Action@v1.6
+        with:
+          server: ${{ secrets.SFTP_HOST }}
+          port: ${{ secrets.SFTP_PORT }}
+          username: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          local_path: .                       # Laravel at repo root
+          remote_path: ${{ secrets.REMOTE_PATH }}   # e.g., /backend
+          sftp_only: true
+          # Exclude files that must stay server-side or are unnecessary
+          exclude: |
+            **/.git*
+            **/.github/**
+            node_modules/**
+            tests/**
+            vendor/bin/**
+            storage/logs/**
+            storage/framework/cache/**
+            storage/framework/sessions/**
+            storage/framework/views/**
+
+      # (Optional) Verify upload by listing a few remote items (some hosts block this)
+      # - name: Post-deploy check (list)
+      #   uses: appleboy/ssh-action@v1
+      #   with:
+      #     host: ${{ secrets.SFTP_HOST }}
+      #     username: ${{ secrets.SFTP_USERNAME }}
+      #     password: ${{ secrets.SFTP_PASSWORD }}
+      #     port: ${{ secrets.SFTP_PORT }}
+      #     script: ls -la ${{ secrets.REMOTE_PATH }}
