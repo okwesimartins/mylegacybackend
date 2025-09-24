@@ -1,8 +1,8 @@
-name: Deploy Laravel to IONOS via SFTP
+name: Deploy to IONOS via SFTP (push-only)
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main"]       # change if you deploy from another branch
   workflow_dispatch:
 
 jobs:
@@ -10,48 +10,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.2"
-          coverage: none
-          tools: composer
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Cache Composer
-        uses: actions/cache@v4
-        with:
-          path: ~/.composer/cache/files
-          key: composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: composer-
-
-      - name: Install Composer deps (prod)
+      - name: Deploy via SFTP (mirror)
+        env:
+          HOST: ${{ secrets.SFTP_HOST }}
+          USERNAME: ${{ secrets.SFTP_USERNAME }}
+          PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
-          mkdir -p storage/framework/{cache,sessions,views}
-          mkdir -p bootstrap/cache
-          rm -f bootstrap/cache/*.php || true
+          # Mirror local -> remote (no build, just files as-is)
+          # NOTE: We exclude things you probably don't want on the server (.env, .git, etc.)
+          lftp -u "${USERNAME},${PASSWORD}" sftp://$HOST << 'EOF'
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:timeout 30
+          set net:reconnect-interval-base 5
+          set xfer:use-temp-file yes
+          set cmd:fail-exit yes
 
-      - name: Deploy via SFTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4   # <- exact casing & pinned version
-        with:
-          server: ${{ secrets.SFTP_HOST }}
-          username: ${{ secrets.SFTP_USERNAME }}
-          password: ${{ secrets.SFTP_PASSWORD }}
-          protocol: sftp
-          port: 22
-          local-dir: ./
-          server-dir: ${{ secrets.REMOTE_PATH }}
-          exclude: |
-            **/.git*
-            **/.github/**
-            node_modules/**
-            tests/**
-            vendor/bin/**
-            storage/logs/**
-            storage/framework/cache/**
-            storage/framework/sessions/**
-            storage/framework/views/**
-           
+          # Create remote path if it doesn't exist
+          mkdir -p ${REMOTE_PATH}
+          cd ${REMOTE_PATH}
+
+          # Upload from the checkout root (.)
+          mirror -R \
+            --verbose \
+            --parallel=4 \
+            --no-perms \
+            --exclude-glob .git* \
+            --exclude-glob .github/* \
+            --exclude-glob node_modules/* \
+            --exclude-glob tests/* \
+            --exclude-glob storage/logs/* \
+            --exclude-glob storage/framework/cache/* \
+            --exclude-glob storage/framework/sessions/* \
+            --exclude-glob storage/framework/views/* \
+            --exclude-glob docker/* \
+            --exclude-glob docker-compose*.yml \
+            ./ .
+
+          bye
+          EOF
