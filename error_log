@@ -1,0 +1,4 @@
+[26-May-2022 09:11:42 UTC] PHP Fatal error:  Access level to App\Exceptions\Handler::render() must be public (as in class Illuminate\Foundation\Exceptions\Handler) in /home/codesandbox/public_html/market_for_opticals/app/Exceptions/Handler.php on line 41
+[26-May-2022 09:12:00 UTC] PHP Fatal error:  Access level to App\Exceptions\Handler::render() must be public (as in class Illuminate\Foundation\Exceptions\Handler) in /home/codesandbox/public_html/market_for_opticals/app/Exceptions/Handler.php on line 41
+[23-Aug-2022 06:54:44 UTC] PHP Fatal error:  Cannot redeclare App\Http\Controllers\Seller::list_all_seller() in /home/codesandbox/public_html/market_for_opticals/app/Http/Controllers/Seller.php on line 36
+[07-Feb-2023 11:35:02 UTC] PHP Fatal error:  Cannot use App\Models\Service_agent as Service_agent because the name is already in use in /home/pluralsandbox/public_html/obd_final_apis/app/Http/Controllers/Serviceagentcontroller.php on line 12
