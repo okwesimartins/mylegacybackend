@@ -1,4 +1,4 @@
-name: Deploy to IONOS via SFTP (push-only)
+name: Deploy to IONOS via SFTP (no mkdir, no target)
 
 on:
   push:
@@ -8,20 +8,17 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Deploy via SFTP (mirror)
+      - name: Deploy via SFTP to current remote dir
         env:
           HOST: ${{ secrets.SFTP_HOST }}
           USERNAME: ${{ secrets.SFTP_USERNAME }}
           PASSWORD: ${{ secrets.SFTP_PASSWORD }}
-          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}  # e.g. /backend
         run: |
           lftp -u "${USERNAME},${PASSWORD}" sftp://${HOST} <<EOF
           set sftp:auto-confirm yes
@@ -31,7 +28,7 @@ jobs:
           set xfer:use-temp-file yes
           set cmd:fail-exit yes
 
-          # Push local repo root -> existing remote directory
+          # Upload LOCAL repo root into the CURRENT REMOTE DIR (no target arg, so no extra folder)
           mirror -R \
             --verbose \
             --parallel=4 \
@@ -48,7 +45,7 @@ jobs:
             --exclude-glob docker-compose*.yml \
             --exclude-glob .env \
             --exclude-glob .env.* \
-            ./ "$REMOTE_PATH"
+            ./
 
           bye
           EOF
