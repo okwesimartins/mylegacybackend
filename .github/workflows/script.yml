@@ -2,7 +2,7 @@ name: Deploy to IONOS via SFTP (push-only)
 
 on:
   push:
-    branches: ["main"]       # change if you deploy from another branch
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -21,11 +21,9 @@ jobs:
           HOST: ${{ secrets.SFTP_HOST }}
           USERNAME: ${{ secrets.SFTP_USERNAME }}
           PASSWORD: ${{ secrets.SFTP_PASSWORD }}
-          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}  # e.g. /backend
         run: |
-          # Mirror local -> remote (no build, just files as-is)
-          # NOTE: We exclude things you probably don't want on the server (.env, .git, etc.)
-          lftp -u "${USERNAME},${PASSWORD}" sftp://$HOST << 'EOF'
+          lftp -u "${USERNAME},${PASSWORD}" sftp://${HOST} <<EOF
           set sftp:auto-confirm yes
           set net:max-retries 2
           set net:timeout 30
@@ -33,11 +31,7 @@ jobs:
           set xfer:use-temp-file yes
           set cmd:fail-exit yes
 
-          # Create remote path if it doesn't exist
-          mkdir -p ${REMOTE_PATH}
-          cd ${REMOTE_PATH}
-
-          # Upload from the checkout root (.)
+          # Push local repo root -> existing remote directory
           mirror -R \
             --verbose \
             --parallel=4 \
@@ -52,7 +46,9 @@ jobs:
             --exclude-glob storage/framework/views/* \
             --exclude-glob docker/* \
             --exclude-glob docker-compose*.yml \
-            ./ .
+            --exclude-glob .env \
+            --exclude-glob .env.* \
+            ./ "$REMOTE_PATH"
 
           bye
           EOF
