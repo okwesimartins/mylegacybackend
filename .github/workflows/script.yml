@@ -1,32 +1,21 @@
-name: Deploy Laravel to IONOS via SFTP
+name: Deploy Laravel to IONOS via SFTP (lftp)
 
 on:
   push:
-    branches: ["main"]         # change if you deploy from a different branch
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ---- Build Laravel on the runner (Composer) ----
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
           coverage: none
           tools: composer
-
-      - name: Cache Composer
-        uses: actions/cache@v4
-        with:
-          path: ~/.composer/cache/files
-          key: composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: composer-
 
       - name: Install Composer deps (prod)
         run: |
@@ -35,37 +24,34 @@ jobs:
           mkdir -p bootstrap/cache
           rm -f bootstrap/cache/*.php || true
 
-      # ---- (Optional) Node build if you have assets in this repo ----
-      # - name: Setup Node
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: 20
-      # - name: Build assets
-      #   run: |
-      #     npm ci
-      #     npm run build
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
 
-      # ---- SFTP deploy (uses lftp, supports SFTP) ----
-      - name: Deploy via SFTP
-        uses: SamKirkland/FTP-Deploy-Action@v4
-        with:
-          server: sftp://${{ secrets.SFTP_HOST }}
-          username: ${{ secrets.SFTP_USERNAME }}
-          password: ${{ secrets.SFTP_PASSWORD }}
-          local-dir: ./
-          server-dir: ${{ secrets.REMOTE_PATH }}
-          protocol: sftp
-          port: 22
-          # safer defaults
-          dry-run: false
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.github/**
-            node_modules/**
-            tests/**
-            vendor/bin/**
-            storage/logs/**
-            storage/framework/cache/**
-            storage/framework/sessions/**
-            storage/framework/views/**
+      - name: Deploy via lftp mirror (SFTP)
+        env:
+          HOST: ${{ secrets.SFTP_HOST }}
+          USERNAME: ${{ secrets.SFTP_USERNAME }}
+          PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+        run: |
+          lftp -u "${USERNAME},${PASSWORD}" sftp://$HOST << 'EOF'
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:timeout 20
+          set net:reconnect-interval-base 5
+          # push local -> remote (mirror -R)
+          mirror -R \
+            --parallel=4 \
+            --verbose \
+            --exclude-glob .git* \
+            --exclude-glob .github/* \
+            --exclude-glob node_modules/* \
+            --exclude-glob tests/* \
+            --exclude-glob vendor/bin/* \
+            --exclude-glob storage/logs/* \
+            --exclude-glob storage/framework/cache/* \
+            --exclude-glob storage/framework/sessions/* \
+            --exclude-glob storage/framework/views/* \
+            ./ ${REMOTE_PATH}
+          bye
+          EOF
