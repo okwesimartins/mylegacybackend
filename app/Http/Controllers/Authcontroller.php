@@ -33,6 +33,7 @@ class Authcontroller extends Controller
         ]);
 
         if ($v->fails()) {
+
             return response()->json(['errors' => $v->errors()], 422);
         }
 
@@ -74,7 +75,7 @@ class Authcontroller extends Controller
             'message' => 'Login successful',
             'token'   => $token,
             'user'    => auth()->user()
-        ]);
+        ],200);
     }
 
     /** REQUEST FORGOT PASSWORD OTP

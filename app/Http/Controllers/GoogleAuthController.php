@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Carbon\Carbon;
-use Google_Client;
+use Google\Client as GoogleClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -20,16 +20,16 @@ class GoogleAuthController extends Controller
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
-
+        $Googleclientid = '126000492493-g21qano34eccoq3gg95vka90jt84deb1.apps.googleusercontent.com';
         try {
-            $client = new Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);
+            $client = new GoogleClient(['client_id' => $Googleclientid]);
             $payload = $client->verifyIdToken($request->id_token);
             if (!$payload) {
                 return response()->json(['message' => 'Invalid Google ID token'], 401);
             }
 
             // Security checks
-            if (($payload['aud'] ?? null) !== env('GOOGLE_CLIENT_ID')) {
+            if (($payload['aud'] ?? null) !== $Googleclientid) {
                 return response()->json(['message' => 'Token audience mismatch'], 401);
             }
             $email   = $payload['email'] ?? null;

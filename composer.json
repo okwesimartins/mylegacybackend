@@ -9,6 +9,7 @@
         "fruitcake/laravel-cors": "^2.0",
         "google/apiclient": "2.15",
         "guzzlehttp/guzzle": "^7.0.1",
+        "kreait/firebase-php": "^5.26",
         "laravel/framework": "^8.75",
         "laravel/sanctum": "^2.11",
         "laravel/tinker": "^2.5",
