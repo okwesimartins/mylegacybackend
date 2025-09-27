@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\FirebasePushService;
 use Carbon\Carbon;
 
 class AffirmationController extends Controller
@@ -210,45 +211,49 @@ class AffirmationController extends Controller
      * GET /cron/affirmations/dispatch-due
      * IONOS cron: run every 5-15 minutes.
      */
-    public function cronDispatchDue()
-    {
-        $now = Carbon::now(config('app.timezone') ?: 'Africa/Lagos');
+   public function cronDispatchDue()
+{
+    $now = Carbon::now(config('app.timezone') ?: 'Africa/Lagos');
+    $due = AffirmationInstance::where('dispatch_status','pending')
+        ->where('scheduled_at','<=',$now)
+        ->limit(500)
+        ->get();
 
-        $due = AffirmationInstance::where('dispatch_status','pending')
-            ->where('scheduled_at','<=',$now)
-            ->limit(500) // avoid giant batches
-            ->get();
+    $push = new FirebasePushService(); // simple instantiation
 
-        $sent = 0;
-        foreach ($due as $row) {
-            $token = UserDeviceToken::where('user_id',$row->user_id)->orderByDesc('id')->value('fcm_token');
-            if (!$token) {
-                // mark failed to avoid retry loops (optional)
-                $row->dispatch_status = 'no_token';
-                $row->sent_at = $now;
-                $row->save();
-                continue;
-            }
+    $sent = 0;
+    foreach ($due as $row) {
+        $token = UserDeviceToken::where('user_id',$row->user_id)
+            ->orderByDesc('id')
+            ->value('fcm_token');
 
-            $ok = $this->sendPush($token, [
-                'title' => 'Daily Affirmation',
-                'body'  => $row->text
-            ]);
-
-            if ($ok) {
-                $row->dispatch_status = 'sent';
-                $row->sent_at = $now;
-                $row->save();
-                $sent++;
-            } else {
-                $row->dispatch_status = 'error';
-                $row->sent_at = $now;
-                $row->save();
-            }
+        if (!$token) {
+            $row->dispatch_status = 'no_token';
+            $row->sent_at = $now;
+            $row->save();
+            continue;
         }
 
-        return response()->json(['message'=>'ok','sent'=>$sent,'checked'=>$due->count()]);
+        try {
+            $ok = $push->sendToToken(
+                $token,
+                'Daily Affirmation',
+                $row->text,
+                ['instance_id' => (string)$row->id]
+            );
+        } catch (\Throwable $e) {
+            $ok = false;
+            \Log::error('FCM send error', ['e' => $e->getMessage(), 'instance' => $row->id]);
+        }
+
+        $row->dispatch_status = $ok ? 'sent' : 'error';
+        $row->sent_at = $now;
+        $row->save();
+        if ($ok) $sent++;
     }
+
+    return response()->json(['message' => 'ok', 'sent' => $sent, 'checked' => $due->count()]);
+}
 
     /**
      * Spacing algorithm:
@@ -319,39 +324,39 @@ class AffirmationController extends Controller
     /**
      * Legacy FCM HTTP send (simple & works fine)
      */
-    private function sendPush(string $toToken, array $notification): bool
-    {
-        $serverKey = env('FCM_SERVER_KEY');
-        if (!$serverKey) return false;
+    // private function sendPush(string $toToken, array $notification): bool
+    // {
+    //     $serverKey = env('FCM_SERVER_KEY');
+    //     if (!$serverKey) return false;
 
-        $payload = [
-            'to' => $toToken,
-            'notification' => [
-                'title' => $notification['title'] ?? 'Notification',
-                'body'  => $notification['body'] ?? '',
-            ],
-            'data' => [
-                'type' => 'affirmation'
-            ]
-        ];
+    //     $payload = [
+    //         'to' => $toToken,
+    //         'notification' => [
+    //             'title' => $notification['title'] ?? 'Notification',
+    //             'body'  => $notification['body'] ?? '',
+    //         ],
+    //         'data' => [
+    //             'type' => 'affirmation'
+    //         ]
+    //     ];
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send');
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: key='.$serverKey,
-            'Content-Type: application/json'
-        ]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        $result = curl_exec($ch);
-        $http   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+    //     $ch = curl_init();
+    //     curl_setopt($ch, CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send');
+    //     curl_setopt($ch, CURLOPT_POST, true);
+    //     curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    //         'Authorization: key='.$serverKey,
+    //         'Content-Type: application/json'
+    //     ]);
+    //     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    //     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    //     $result = curl_exec($ch);
+    //     $http   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    //     curl_close($ch);
 
-        if ($http === 200) {
-            $json = json_decode($result, true);
-            return isset($json['success']) ? ($json['success'] >= 1) : true;
-        }
-        return false;
-    }
+    //     if ($http === 200) {
+    //         $json = json_decode($result, true);
+    //         return isset($json['success']) ? ($json['success'] >= 1) : true;
+    //     }
+    //     return false;
+    // }
 }
