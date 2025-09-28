@@ -132,6 +132,7 @@ class Authcontroller extends Controller
             $decoded = json_decode(Crypt::decryptString($request->token), true);
             $otp      = $decoded['otp'] ?? null;
             $exp      = $decoded['exp'] ?? null;
+            $email    = $decoded['email'] ?? null;
 
             if (! $otp || ! $exp) {
                 return response()->json(['message' => 'Invalid or tampered token'], 400);
@@ -144,7 +145,9 @@ class Authcontroller extends Controller
             if ($request->enteredOtp !== $otp) {
                 return response()->json(['message' => 'Invalid OTP'], 400);
             }
-
+            User::where('email', $email)->update([
+             "verified"=>1
+            ]);
             return response()->json(['message' => 'OTP verified successfully']);
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Invalid or tampered token'], 400);
@@ -173,4 +176,51 @@ class Authcontroller extends Controller
 
         return response()->json(['message' => 'Password reset successfully']);
     }
+
+    public function getusersProfile(Request $request)
+{
+         $token = JWTAuth::parseToken()->getPayload()->toArray();
+                   $id=$token['id'];
+        $user = User::select('name','phone','email','verified')->where('id', $id)->first();
+
+        return response()->json($user);
 }
+
+
+public function update_password_from_dashboard(Request $request){
+               $validator = Validator::make($request->all(), [
+                'password' => 'required|string|min:6|confirmed',
+                'old_password'=>'required'
+                
+            ]);
+            if($validator->fails()){
+                    return response()->json($validator->errors(), 400);
+            }else{
+                 $token = JWTAuth::parseToken()->getPayload()->toArray();
+                   $id=$token['id'];
+                   
+                 $user= User::where('id', $id)->first();
+                $pass=$user->password;
+                if(Hash::check($request->old_password, $pass)){
+                    
+                $id=$user->id;
+           
+            $admin = User::where('id',$id)->update([
+                'password'=>Hash::make($request->password)
+            ]);
+            return response()->json(["status"=>"success"],200);
+                }else{
+                    return response()->json([
+                        "satus"=> "failed",
+                        "message"=>"Incorrect password"
+                        ]);
+                }
+                
+                }
+}
+
+}
+
+
+
+  

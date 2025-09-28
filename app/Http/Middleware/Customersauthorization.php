@@ -18,7 +18,7 @@ class Customersauthorization
      * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
      * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
      */
-    public function handle(Request $request, Closure $next, $roles)
+    public function handle(Request $request, Closure $next)
     {
 
         // auth()->shouldUse('auth:admin_api');
@@ -42,11 +42,11 @@ class Customersauthorization
         }
         //If user was authenticated successfully and user is in one of the acceptable roles, send to next request.
       
-        if ($user['role']==$roles) {
-            return $next($request);
-        }
-      
-        return $this->unauthorized();
+        // if ($user['role']==$roles) {
+        //     return $next($request);
+        // }
+      return $next($request);
+        // return $this->unauthorized();
     }
     private function unauthorized($message = null){
         return response()->json([

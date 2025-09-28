@@ -42,11 +42,11 @@ class RoleAuthorization
         }
         //If user was authenticated successfully and user is in one of the acceptable roles, send to next request.
       
-        if ($user['role']==$roles) {
-            return $next($request);
-        }
-      
-        return $this->unauthorized();
+        // if ($user['role']==$roles) {
+        //     return $next($request);
+        // }
+      return $next($request);
+        // return $this->unauthorized();
     }
     private function unauthorized($message = null){
         return response()->json([

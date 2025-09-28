@@ -17,21 +17,18 @@ class User extends Authenticatable implements JWTSubject
      *
      * @var array<int, string>
      */
+    public $timestamps= False;
     protected $fillable = [
         'name',
         'email',
-        'country',
+        'gender',
+        'phone',
         'password',
-        'state',
-        'destination_address',
-        'phone_number',
-        'otp',
-        'otp_date_time',
-        'active',
-        'device_id',
-        'lat',
-        'log',
-        'device_verified',
+        'google_id',
+        'email_verified_at',
+        'avatar',
+        'provider',
+        'verified',
     ];
 
     /**
@@ -41,9 +38,6 @@ class User extends Authenticatable implements JWTSubject
      */
     protected $hidden = [
         'password',
-        'remember_token',
-        'updated_at',
-        'created_at',
     ];
 
     /**
