@@ -6,7 +6,7 @@ use App\Http\Controllers\Authcontroller;
 
 use App\Http\Controllers\GoogleAuthController;
 
-
+use App\Http\Controllers\AffirmationController;
 
 /*
 |--------------------------------------------------------------------------

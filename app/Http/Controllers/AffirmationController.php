@@ -297,7 +297,7 @@ class AffirmationController extends Controller
     private function callAiService(array $categories, int $countPerCategory): array
     {
         try {
-            $url = rtrim(env('AI_SERVICE_URL'), '/').'/generate';
+            $url = 'https://us-central1-august-theme-472817-g3.cloudfunctions.net/mylegacyjournalsai/generate';
             $resp = Http::withHeaders([
                 'Content-Type' => 'application/json',
                 'x-api-key'    => env('AI_SERVICE_KEY')
