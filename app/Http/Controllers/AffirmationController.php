@@ -163,9 +163,9 @@ public function cronGenerateToday()
     // Users with active prefs
     $userIds = UserAffirmationPref::where('active', 1)->distinct()->pluck('user_id');
     
-     return response()->json($userIds);
+    
     $createdTotals = 0;
-
+  try{
     foreach ($userIds as $uid) {
         $has = AffirmationInstance::where('user_id', $uid)
             ->whereDate('scheduled_at', $date->toDateString())
@@ -261,7 +261,9 @@ public function cronGenerateToday()
             }
         });
     }
-
+ } catch (\Throwable $e) {
+                   return response()->json(['error' => $e->getMessage()], 401);
+        }
     return response()->json(['message' => 'ok', 'created' => $createdTotals]);
 }
 
