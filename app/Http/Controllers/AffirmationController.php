@@ -162,7 +162,8 @@ public function cronGenerateToday()
 
     // Users with active prefs
     $userIds = UserAffirmationPref::where('active', 1)->distinct()->pluck('user_id');
-
+    
+     return response()->json($userIds);
     $createdTotals = 0;
 
     foreach ($userIds as $uid) {
