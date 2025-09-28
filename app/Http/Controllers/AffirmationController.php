@@ -42,7 +42,7 @@ class AffirmationController extends Controller
         ]);
         if ($v->fails()) return response()->json(['errors'=>$v->errors()],422);
         $user = JWTAuth::parseToken()->authenticate();
-        $userId = $user->id();
+        $userId = $user->id;
 
         DB::transaction(function () use ($request, $userId) {
             foreach ($request->categories as $pref) {
