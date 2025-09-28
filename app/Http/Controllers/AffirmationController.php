@@ -21,7 +21,7 @@ class AffirmationController extends Controller
      */
     public function listCategories()
     {
-        $cats = AffirmationCategory::select('id','name','slug')->orderBy('name')->get();
+        $cats = AffirmationCategory::select('id','name','slug','description','image_link')->orderBy('name')->get();
         return response()->json(['data' => $cats]);
     }
 

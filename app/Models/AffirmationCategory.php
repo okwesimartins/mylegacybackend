@@ -9,5 +9,5 @@ class AffirmationCategory extends Model
 {
     protected $table = 'affirmations'; // you showed this table holds categories
     public $timestamps = false;
-    protected $fillable = ['name','slug'];
+    protected $fillable = ['name','slug','description','image_link',];
 }
