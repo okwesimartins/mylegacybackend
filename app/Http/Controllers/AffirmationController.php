@@ -70,9 +70,11 @@ class AffirmationController extends Controller
             'platform'  => 'nullable|string|max:20'
         ]);
         if ($v->fails()) return response()->json(['errors'=>$v->errors()],422);
+        $user = JWTAuth::parseToken()->authenticate();
+        $userId = $user->id;
 
         UserDeviceToken::updateOrCreate(
-            ['user_id'=>auth()->id(), 'fcm_token'=>$request->fcm_token],
+            ['user_id'=>$userId, 'fcm_token'=>$request->fcm_token],
             ['platform'=>$request->platform ?? 'unknown']
         );
         return response()->json(['message'=>'Token saved']);
