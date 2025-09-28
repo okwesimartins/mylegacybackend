@@ -420,7 +420,7 @@ public function cronGenerateToday()
             $url = 'https://us-central1-august-theme-472817-g3.cloudfunctions.net/mylegacyjournalsai/generate';
             $resp = Http::withHeaders([
                 'Content-Type' => 'application/json',
-                'x-api-key'    => env('AI_SERVICE_KEY')
+                'x-api-key'    => 'hrennxbbbbzhyruuio4883jdnm-fhhfnnsmn485hnnmwnfh-ehhssBNDHejjn3'
             ])->timeout(20)->post($url, [
                 'categories'        => $categories,
                 'countPerCategory'  => $countPerCategory,
