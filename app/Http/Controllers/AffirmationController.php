@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\FirebasePushService;
 use Carbon\Carbon;
+use JWTAuth;
+use Config;
+use Auth;
+use Tymon\JWTAuth\Exceptions\JWTException;
 
 class AffirmationController extends Controller
 {
