@@ -160,112 +160,171 @@ public function cronGenerateToday()
     $tz   = config('app.timezone') ?: 'Africa/Lagos';
     $date = Carbon::today($tz);
 
-    // Users with active prefs
-    $userIds = UserAffirmationPref::where('active', 1)->distinct()->pluck('user_id');
-    
-    
-    $createdTotals = 0;
-  try{
-    foreach ($userIds as $uid) {
-        $has = AffirmationInstance::where('user_id', $uid)
-            ->whereDate('scheduled_at', $date->toDateString())
-            ->exists();
-        if ($has) continue;
+    try {
+        $userIds = UserAffirmationPref::where('active', 1)->distinct()->pluck('user_id');
+        \Log::info('[AFFIRM CRON] start', [
+            'tz' => $tz,
+            'date' => $date->toDateString(),
+            'user_count' => $userIds->count()
+        ]);
 
-        $prefs = UserAffirmationPref::where('user_id', $uid)->where('active', 1)->get();
-        if ($prefs->isEmpty()) continue;
+        $createdTotals = 0;
 
-        $catIds = $prefs->pluck('category_id')->all();
-        $cats   = AffirmationCategory::whereIn('id', $catIds)->get(['id','name','slug']);
+        foreach ($userIds as $uid) {
+            try {
+                $has = AffirmationInstance::where('user_id', $uid)
+                    ->whereDate('scheduled_at', $date->toDateString())
+                    ->exists();
 
-        // Ask AI for up to the max we might need per category
-        $countPerCategory = max(1, $prefs->max('times_per_day'));
+                \Log::info('[AFFIRM CRON] user check', [
+                    'user_id' => $uid,
+                    'has_today' => $has
+                ]);
 
-        $aiResp = $this->callAiService($cats->toArray(), $countPerCategory);
-        if ($aiResp['error'] ?? false) continue;
+                if ($has) continue; // already scheduled for today
 
-        // -------- NORMALIZE AI RESPONSE --------
-        // From: [ { category_id: "1", items: "line1\nline2" }, ... ]
-        // To:   [ 1 => ['line1','line2'], 2 => ['...'], ... ]
-        $normMap = collect($aiResp)->mapWithKeys(function ($row) {
-            // protect against weird shapes
-            $cidRaw = $row['category_id'] ?? null;
-            if ($cidRaw === null) return [];
+                $prefs = UserAffirmationPref::where('user_id', $uid)
+                    ->where('active', 1)->get();
 
-            // keys as integers to match your DB ids (string '1' also OK in PHP)
-            $cid = (int) $cidRaw;
-
-            $items = $row['items'] ?? [];
-            if (is_string($items)) {
-                // split multi-line content into separate items
-                $items = preg_split("/\r?\n/", $items);
-                $items = array_values(array_filter(array_map('trim', $items), fn($s) => $s !== ''));
-            } elseif (!is_array($items)) {
-                // if it's a scalar/null, wrap
-                $items = $items ? [(string)$items] : [];
-            }
-
-            return [$cid => $items];
-        });
-        // --------------------------------------
-
-        DB::transaction(function () use ($prefs, $cats, $date, $uid, $normMap, &$createdTotals) {
-
-            foreach ($prefs as $pref) {
-                $catId = (int) $pref->category_id;
-
-                // Pull items for this category (may be empty)
-                $items = $normMap->get($catId, []);
-
-                // If AI returned fewer than needed, pad by cycling through what we have
-                if (empty($items)) {
-                    $items = ['You matter. Keep going.'];
+                if ($prefs->isEmpty()) {
+                    \Log::info('[AFFIRM CRON] user has no active prefs', ['user_id' => $uid]);
+                    continue;
                 }
-                if (count($items) < $pref->times_per_day) {
-                    $i = 0;
-                    while (count($items) < $pref->times_per_day) {
-                        $items[] = $items[$i % max(1, count($items))];
-                        $i++;
+
+                $catIds = $prefs->pluck('category_id')->all();
+                $cats   = AffirmationCategory::whereIn('id', $catIds)->get(['id','name','slug']);
+                $countPerCategory = max(1, (int)$prefs->max('times_per_day'));
+
+                \Log::info('[AFFIRM CRON] pref summary', [
+                    'user_id' => $uid,
+                    'pref_count' => $prefs->count(),
+                    'cat_ids' => $catIds,
+                    'countPerCategory' => $countPerCategory
+                ]);
+
+                $aiResp = $this->callAiService($cats->toArray(), $countPerCategory);
+
+                if (!is_array($aiResp)) {
+                    \Log::warning('[AFFIRM CRON] AI bad shape', ['user_id'=>$uid, 'aiResp_type' => gettype($aiResp)]);
+                    continue;
+                }
+                if ($aiResp['error'] ?? false) {
+                    \Log::warning('[AFFIRM CRON] AI error flag', ['user_id'=>$uid, 'ai_error' => $aiResp['error']]);
+                    continue;
+                }
+
+                \Log::info('[AFFIRM CRON] AI raw', ['user_id'=>$uid, 'aiResp' => $aiResp]);
+
+                // Normalize AI response -> map of catId => [items...]
+                $normMap = collect($aiResp)->mapWithKeys(function ($row) {
+                    $cidRaw = $row['category_id'] ?? null;
+                    if ($cidRaw === null) return [];
+
+                    $cid = (int) $cidRaw;
+
+                    $items = $row['items'] ?? [];
+                    if (is_string($items)) {
+                        $items = preg_split("/\r?\n/", $items);
+                        $items = array_values(array_filter(array_map('trim', $items), fn($s) => $s !== ''));
+                    } elseif (!is_array($items)) {
+                        $items = $items ? [(string)$items] : [];
                     }
-                }
-                // If AI returned more than needed, trim
-                if (count($items) > $pref->times_per_day) {
-                    $items = array_slice($items, 0, $pref->times_per_day);
-                }
 
-                // Compute times
-                $slots = $this->computeSchedule(
-                    $date,
-                    $pref->day_start,
-                    $pref->day_end,
-                    (int)$pref->times_per_day,
-                    $catId
-                );
+                    return [$cid => $items];
+                });
 
-                // Create instances
-                for ($i = 0; $i < count($slots); $i++) {
-                    AffirmationInstance::create([
-                        'user_id'         => $uid,
-                        'category_id'     => $catId,
-                        'text'            => $items[$i] ?? 'You are loved and guided.',
-                        'scheduled_at'    => $slots[$i],
-                        'sent_at'         => null,
-                        'dispatch_status' => 'pending',
-                        'meta'            => json_encode([
-                            'source'        => 'ai',
-                            'category_name' => optional($cats->firstWhere('id', $catId))->name
-                        ])
-                    ]);
-                    $createdTotals++;
-                }
+                \Log::info('[AFFIRM CRON] normalized map', [
+                    'user_id' => $uid,
+                    'keys' => $normMap->keys()->all()
+                ]);
+
+                DB::transaction(function () use ($prefs, $cats, $date, $uid, $normMap, &$createdTotals) {
+
+                    foreach ($prefs as $pref) {
+                        $catId = (int) $pref->category_id;
+
+                        $items = $normMap->get($catId, []);
+
+                        // pad/trim to times_per_day
+                        if (empty($items)) {
+                            $items = ['You matter. Keep going.'];
+                        }
+                        $tpd = (int) $pref->times_per_day ?: 1;
+                        if (count($items) < $tpd) {
+                            $i = 0;
+                            while (count($items) < $tpd) {
+                                $items[] = $items[$i % max(1, count($items))];
+                                $i++;
+                            }
+                        } elseif (count($items) > $tpd) {
+                            $items = array_slice($items, 0, $tpd);
+                        }
+
+                        $slots = $this->computeSchedule(
+                            $date,
+                            $pref->day_start,
+                            $pref->day_end,
+                            $tpd,
+                            $catId
+                        );
+
+                        \Log::info('[AFFIRM CRON] schedule', [
+                            'user_id' => $uid,
+                            'category_id' => $catId,
+                            'tpd' => $tpd,
+                            'slots' => $slots,
+                            'items' => $items
+                        ]);
+
+                        for ($i = 0; $i < count($slots); $i++) {
+                            $row = [
+                                'user_id'         => $uid,
+                                'category_id'     => $catId,
+                                'text'            => $items[$i] ?? 'You are loved and guided.',
+                                'scheduled_at'    => $slots[$i],
+                                'sent_at'         => null,
+                                'dispatch_status' => 'pending',
+                                'meta'            => json_encode([
+                                    'source'        => 'ai',
+                                    'category_name' => optional($cats->firstWhere('id', $catId))->name
+                                ])
+                            ];
+
+                            // Try/catch each insert to capture exact error
+                            try {
+                                AffirmationInstance::create($row);
+                                $createdTotals++;
+                            } catch (\Throwable $ex) {
+                                \Log::error('[AFFIRM CRON] insert failed', [
+                                    'user_id' => $uid,
+                                    'category_id' => $catId,
+                                    'error' => $ex->getMessage(),
+                                    'row' => $row
+                                ]);
+                                throw $ex; // rethrow to rollback if one fails
+                            }
+                        }
+                    }
+                });
+
+            } catch (\Throwable $inner) {
+                \Log::error('[AFFIRM CRON] user loop error', [
+                    'user_id' => $uid,
+                    'error' => $inner->getMessage()
+                ]);
+                // continue to next user
             }
-        });
-    }
- } catch (\Throwable $e) {
-                   return response()->json(['error' => $e->getMessage()], 401);
         }
-    return response()->json(['message' => 'ok', 'created' => $createdTotals]);
+
+        \Log::info('[AFFIRM CRON] done', ['created' => $createdTotals]);
+        return response()->json(['message' => 'ok', 'created' => $createdTotals]);
+
+    } catch (\Throwable $e) {
+        \Log::error('[AFFIRM CRON] fatal', ['error' => $e->getMessage()]);
+        return response()->json(['message' => 'error', 'error' => $e->getMessage()], 500);
+    }
 }
+
 
 
     /**
