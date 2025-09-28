@@ -37,8 +37,8 @@ class AffirmationController extends Controller
             'categories.*.times_per_day' => 'required|integer|min:1|max:9',
         ]);
         if ($v->fails()) return response()->json(['errors'=>$v->errors()],422);
-
-        $userId = auth()->id();
+        $user = JWTAuth::parseToken()->authenticate();
+        $userId = $user->id();
 
         DB::transaction(function () use ($request, $userId) {
             foreach ($request->categories as $pref) {
