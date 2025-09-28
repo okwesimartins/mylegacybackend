@@ -12,17 +12,17 @@ class Sendotp extends Mailable
     use Queueable, SerializesModels;
     
     public $title;
-    public $customer_info;
+    public $name;
     public $otp;
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($title,$customer_info,$otp)
+    public function __construct($name,$otp)
     {
-        $this->title=$title;
-        $this->customer_info=$customer_info;
+        $this->title="OTP";
+        $this->name=$name;
         $this->otp=$otp;
     }
 

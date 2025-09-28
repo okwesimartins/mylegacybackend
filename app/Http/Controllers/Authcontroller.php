@@ -108,7 +108,7 @@ class Authcontroller extends Controller
         $encryptedToken = Crypt::encryptString($payload);
 
         // Send email
-        Mail::to($user->email)->send(new OtpMail($user->name, $otp));
+        Mail::to($user->email)->send(new Sendotp($user->name, $otp));
 
         return response()->json([
             'message' => 'OTP sent successfully',
