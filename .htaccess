@@ -1,14 +1,16 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-
-    # Your app lives at /backend on the domain:
     RewriteBase /backend/
+
+    # Pass Authorization header through to PHP (needed for JWT on many shared hosts)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
     # Serve existing files/folders directly
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Everything else goes to index.php (in the SAME /backend folder)
+    # Everything else goes to index.php
     RewriteRule ^ index.php [L]
 </IfModule>
