@@ -34,9 +34,7 @@ class AffirmationController extends Controller
         $v = Validator::make($request->all(), [
             'categories'               => 'required|array|min:1',
             'categories.*.category_id' => 'required|integer|exists:affirmations,id',
-            'categories.*.times_per_day' => 'required|integer|min:1|max:12',
-            'categories.*.day_start'   => 'required|date_format:H:i',
-            'categories.*.day_end'     => 'required|date_format:H:i',
+            'categories.*.times_per_day' => 'required|integer|min:1|max:9',
         ]);
         if ($v->fails()) return response()->json(['errors'=>$v->errors()],422);
 
@@ -48,8 +46,6 @@ class AffirmationController extends Controller
                     ['user_id'=>$userId, 'category_id'=>$pref['category_id']],
                     [
                         'times_per_day' => $pref['times_per_day'],
-                        'day_start'     => $pref['day_start'],
-                        'day_end'       => $pref['day_end'],
                         'active'        => 1
                     ]
                 );
