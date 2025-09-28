@@ -179,9 +179,8 @@ class Authcontroller extends Controller
 
     public function getusersProfile(Request $request)
 {
-         $token = JWTAuth::parseToken()->getPayload()->toArray();
-                   $email=$token['email'];
-        $user = User::select('name','phone','email','verified')->where('email', $email)->first();
+         
+        $user = JWTAuth::parseToken()->authenticate();
 
         return response()->json($user);
 }
