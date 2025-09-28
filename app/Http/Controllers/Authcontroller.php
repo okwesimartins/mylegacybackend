@@ -81,7 +81,7 @@ class Authcontroller extends Controller
     /** REQUEST FORGOT PASSWORD OTP
      * Returns an encrypted token (contains otp + expiry + email)
      */
-    public function requestForgotPasswordOTP(Request $request)
+    public function requestOTP(Request $request)
     {
         $v = Validator::make($request->all(), [
             'email' => 'required|email'
