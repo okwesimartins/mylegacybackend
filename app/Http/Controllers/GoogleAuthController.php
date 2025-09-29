@@ -62,7 +62,9 @@ class GoogleAuthController extends Controller
                 $user->provider = $user->provider ?: 'google';
                 $user->save();
             }
-
+                User::where('email', $email)->update([
+             "verified"=>1
+            ]);
             // Issue your app’s JWT
             $token = JWTAuth::fromUser($user);
 
