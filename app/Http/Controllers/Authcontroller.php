@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\User;
-
+use App\Models\UserAffirmationPref;
 
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
@@ -117,7 +117,7 @@ class Authcontroller extends Controller
     }
 
     /** VERIFY FORGOT PASSWORD OTP */
-    public function verifyForgotPasswordOTP(Request $request)
+    public function verifyOTP(Request $request)
     {
         $v = Validator::make($request->all(), [
             'enteredOtp' => 'required|string',
@@ -181,8 +181,8 @@ class Authcontroller extends Controller
 {
          
         $user = JWTAuth::parseToken()->authenticate();
-
-        return response()->json($user);
+        $getuserAffirmation = UserAffirmationPref::where("user_id",$user->id)->get();
+        return response()->json(["userinfo"=>$user,"afirmations"=>getuserAffirmation]);
 }
 
 
