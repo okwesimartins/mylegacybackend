@@ -182,7 +182,7 @@ class Authcontroller extends Controller
          
         $user = JWTAuth::parseToken()->authenticate();
         $getuserAffirmation = UserAffirmationPref::where("user_id",$user->id)->get();
-        return response()->json(["userinfo"=>$user,"afirmations"=>getuserAffirmation]);
+        return response()->json(["userinfo"=>$user,"afirmations"=>$getuserAffirmation]);
 }
 
 
