@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\UserAffirmationPref;
-
+use App\Models\AffirmationCategory;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -177,12 +177,34 @@ class Authcontroller extends Controller
         return response()->json(['message' => 'Password reset successfully']);
     }
 
-    public function getusersProfile(Request $request)
+public function getusersProfile(Request $request)
 {
-         
-        $user = JWTAuth::parseToken()->authenticate();
-        $getuserAffirmation = UserAffirmationPref::where("user_id",$user->id)->get();
-        return response()->json(["userinfo"=>$user,"afirmations"=>$getuserAffirmation]);
+    $user = JWTAuth::parseToken()->authenticate();
+
+    $prefs = UserAffirmationPref::where("user_id", $user->id)->get();
+
+    $affirmations = [];
+    foreach ($prefs as $pref) {
+        $cat = AffirmationCategory::where('id', $pref->category_id)->first();
+
+        $affirmations[] = [
+            'id'            => $pref->id,
+            'times_per_day' => $pref->times_per_day,
+            'day_start'     => $pref->day_start,
+            'day_end'       => $pref->day_end,
+            'active'        => $pref->active,
+            'category'      => [
+                'id'   => $pref->category_id,
+                'name' => $cat ? $cat->name : null,
+           
+            ]
+        ];
+    }
+
+    return response()->json([
+        "userinfo"     => $user,
+        "affirmations" => $affirmations
+    ]);
 }
 
 
