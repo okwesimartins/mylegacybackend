@@ -338,6 +338,8 @@ public function cronGenerateToday()
         ->where('scheduled_at','<=',$now)
         ->limit(500)
         ->get();
+
+    return response()->json($due);
     try{
     $push = new FirebasePushService(); // simple instantiation
 
@@ -372,8 +374,7 @@ public function cronGenerateToday()
         if ($ok) $sent++;
     } 
 } catch (\Throwable $e) {
-            $ok = false;
-            \Log::error('FCM send error', ['e' => $e->getMessage()]);
+            return response()->json(['message' => 'Google auth failed', 'error' => $e->getMessage()], 401);
         }
 
     return response()->json(['message' => 'ok', 'sent' => $sent, 'checked' => $due->count()]);
