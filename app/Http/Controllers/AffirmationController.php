@@ -338,7 +338,7 @@ public function cronGenerateToday()
         ->where('scheduled_at','<=',$now)
         ->limit(500)
         ->get();
-
+    try{
     $push = new FirebasePushService(); // simple instantiation
 
     $sent = 0;
@@ -370,7 +370,11 @@ public function cronGenerateToday()
         $row->sent_at = $now;
         $row->save();
         if ($ok) $sent++;
-    }
+    } 
+} catch (\Throwable $e) {
+            $ok = false;
+            \Log::error('FCM send error', ['e' => $e->getMessage()]);
+        }
 
     return response()->json(['message' => 'ok', 'sent' => $sent, 'checked' => $due->count()]);
 }
