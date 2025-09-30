@@ -37,6 +37,7 @@ Route::post('verify_otp', [Authcontroller::class, 'verifyOTP']);
 //update password
 Route::post('reset_password', [Authcontroller::class, 'resetForgottenPassword']);
 
+Route::get('getuser_for_ai', [Authcontroller::class, 'getuserinfoForai']);
 
 
 //Route::group(['middleware'=>['auth.role:admins']], function(){

@@ -208,6 +208,8 @@ public function getusersProfile(Request $request)
 }
 
 
+
+
 public function update_password_from_dashboard(Request $request){
                $validator = Validator::make($request->all(), [
                 'password' => 'required|string|min:6|confirmed',
@@ -238,6 +240,39 @@ public function update_password_from_dashboard(Request $request){
                 }
                 
                 }
+}
+
+
+//get user profile for mylegacyjournal ai
+public function getuserinfoForai (Request $request)
+{   
+    $email = $request->query('email');
+    $user = User::select('id','name')->where("email",$email)->first();
+
+    $prefs = UserAffirmationPref::where("user_id", $user->id)->get();
+
+    $affirmations = [];
+    foreach ($prefs as $pref) {
+        $cat = AffirmationCategory::where('id', $pref->category_id)->first();
+
+        $affirmations[] = [
+            'id'            => $pref->id,
+            'times_per_day' => $pref->times_per_day,
+            'day_start'     => $pref->day_start,
+            'day_end'       => $pref->day_end,
+            'active'        => $pref->active,
+            'category'      => [
+                'id'   => $pref->category_id,
+                'name' => $cat ? $cat->name : null,
+           
+            ]
+        ];
+    }
+
+    return response()->json([
+        "userinfo"     => $user,
+        "affirmations" => $affirmations
+    ]);
 }
 
 }
