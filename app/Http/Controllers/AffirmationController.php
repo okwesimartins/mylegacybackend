@@ -335,7 +335,7 @@ public function cronGenerateToday()
 {
     $now = Carbon::now(config('app.timezone') ?: 'Africa/Lagos');
     $due = AffirmationInstance::where('dispatch_status','pending')
-        ->where('scheduled_at','<=',$now)
+        ->where('scheduled_at','<=',DB::raw('CURRENT_TIMESTAMP()'))
         ->limit(500)
         ->get();
 
