@@ -419,32 +419,49 @@ public function cronGenerateToday()
      * @param array $categories like [ ['id'=>1,'name'=>'Health','slug'=>'health'], ... ]
      * @return array e.g. [ ['category_id'=>1,'items'=>['...','...']], ... ]
      */
-    private function callAiService(array $categories, int $countPerCategory): array
-    {
-        try {
-            $url = 'https://us-central1-august-theme-472817-g3.cloudfunctions.net/mylegacyjournalsai/generate';
-            $resp = Http::withHeaders([
+ private function callAiService(array $categories, int $countPerCategory): array
+{
+    $requestId = (string) Str::uuid();
+    $url = 'https://us-central1-august-theme-472817-g3.cloudfunctions.net/mylegacyjournalsai/generate';
+
+    $start = microtime(true);
+
+    try {
+        $resp = Http::withHeaders([
                 'Content-Type' => 'application/json',
-                'x-api-key'    => 'hrennxbbbbzhyruuio4883jdnm-fhhfnnsmn485hnnmwnfh-ehhssBNDHejjn3'
-            ])->timeout(20)->post($url, [
-                'categories'        => $categories,
+                'x-api-key'    => 'hrennxbbbbzhyruuio4883jdnm-fhhfnnsmn485hnnmwnfh-ehhssBNDHejjn3',
+                'x-request-id' => $requestId,
+            ])
+            ->connectTimeout(10)     // TCP connect
+            ->timeout(90)            // total time to first byte + body
+            ->retry(2, 1000)         // 2 retries, 1s backoff
+            ->post($url, [
+                'categories'        => array_values($categories),
                 'countPerCategory'  => $countPerCategory,
                 'tone'              => 'gentle, faith-infused, concise',
-                'maxChars'          => 140
+                'maxChars'          => 140,
             ]);
 
-            if (!$resp->successful()) {
-                Log::error('AI service error', ['status'=>$resp->status(), 'body'=>$resp->body()]);
-                return ['error'=>'upstream_error'];
-            }
-            $data = $resp->json();
-            if (!is_array($data)) return ['error'=>'bad_json'];
-            return $data;
-        } catch (\Throwable $e) {
-            Log::error('AI service exception', ['e'=>$e->getMessage()]);
-            return ['error'=>'exception'];
+        $ms = (int) round((microtime(true) - $start) * 1000);
+        Log::info('AI service timing', ['ms' => $ms, 'status' => $resp->status(), 'reqId' => $requestId]);
+
+        if (!$resp->successful()) {
+            Log::error('AI service error', [
+                'status' => $resp->status(),
+                'body'   => $resp->body(),
+                'reqId'  => $requestId
+            ]);
+            return ['error' => 'upstream_error'];
         }
+
+        $data = $resp->json();
+        return is_array($data) ? $data : ['error' => 'bad_json'];
+
+    } catch (\Throwable $e) {
+        Log::error('AI service exception', ['e' => $e->getMessage(), 'reqId' => $requestId]);
+        return ['error' => 'exception'];
     }
+}
 
     /**
      * Legacy FCM HTTP send (simple & works fine)
