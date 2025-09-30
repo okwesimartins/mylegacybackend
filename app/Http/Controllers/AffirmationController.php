@@ -339,7 +339,7 @@ public function cronGenerateToday()
         ->limit(500)
         ->get();
 
-    return response()->json($due);
+    
     try{
     $push = new FirebasePushService(); // simple instantiation
 
