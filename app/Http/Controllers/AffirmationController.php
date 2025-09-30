@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\FirebasePushService;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 use JWTAuth;
 use Config;
 use Auth;
