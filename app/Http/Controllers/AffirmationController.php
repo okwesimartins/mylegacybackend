@@ -81,81 +81,7 @@ class AffirmationController extends Controller
         return response()->json(['message'=>'Token saved']);
     }
 
-    /**
-     * POST /api/affirmations/generate-and-schedule
-     * Body: { "date": "2025-09-26" (optional, default today) }
-     *
-     * Calls AI (Cloud Run) to generate texts per active category,
-     * schedules N texts per category across the user’s window.
-     */
-    // public function generateAndScheduleForUser(Request $request)
-    // {
-    //     $date = $request->input('date') ? Carbon::parse($request->input('date')) : Carbon::today(config('app.timezone') ?: 'Africa/Lagos');
-    //     $userId = auth()->id();
 
-    //     // prefs
-    //     $prefs = UserAffirmationPref::where('user_id',$userId)->where('active',1)->get();
-    //     if ($prefs->isEmpty()) return response()->json(['message'=>'No active categories set'], 400);
-
-    //     // avoid duplicates for this date
-    //     $already = AffirmationInstance::where('user_id',$userId)
-    //         ->whereDate('scheduled_at', $date->toDateString())
-    //         ->count();
-    //     if ($already > 0) {
-    //         return response()->json(['message'=>'Schedule for this date already exists'], 409);
-    //     }
-
-    //     // build categories for AI
-    //     $catIds = $prefs->pluck('category_id')->all();
-    //     $cats   = AffirmationCategory::whereIn('id',$catIds)->get(['id','name','slug']);
-    //     $countPerCategory = max(1, $prefs->max('times_per_day'));
-
-    //     // call AI service
-    //     $aiResp = $this->callAiService($cats->toArray(), $countPerCategory);
-    //     if ($aiResp['error'] ?? false) {
-    //         return response()->json(['message'=>'AI service error', 'detail'=>$aiResp['error']], 502);
-    //     }
-    //     // aiResp: [ {category_id, items: [ "text1", "text2", ... ] }, ... ]
-
-    //     // Insert schedules
-    //     $created = 0;
-    //     DB::transaction(function () use ($prefs, $cats, $aiResp, $date, $userId, &$created) {
-    //         $byCat = collect($aiResp)->keyBy('category_id');
-
-    //         foreach ($prefs as $pref) {
-    //             $catId = $pref->category_id;
-
-    //             $items = $byCat[$catId]['items'] ?? [];
-    //             // Ensure we have at least times_per_day texts
-    //             if (count($items) < $pref->times_per_day) {
-    //                 // pad by repeating if AI returned fewer
-    //                 while (count($items) < $pref->times_per_day) $items[] = $items[array_rand($items)] ?? 'You are loved and guided.';
-    //             }
-
-    //             $slots = $this->computeSchedule($date, $pref->day_start, $pref->day_end, $pref->times_per_day, $catId);
-    //             for ($i=0; $i < count($slots); $i++) {
-    //                 AffirmationInstance::create([
-    //                     'user_id'        => $userId,
-    //                     'category_id'    => $catId,
-    //                     'text'           => $items[$i],
-    //                     'scheduled_at'   => $slots[$i],
-    //                     'sent_at'        => null,
-    //                     'dispatch_status'=> 'pending',
-    //                     'meta'           => json_encode(['source'=>'ai','category_name'=>$cats->firstWhere('id',$catId)->name ?? null])
-    //                 ]);
-    //                 $created++;
-    //             }
-    //         }
-    //     });
-
-    //     return response()->json(['message'=>'Scheduled', 'created'=>$created]);
-    // }
-
-    /**
-     * GET /cron/affirmations/generate-today
-     * For ALL users with active prefs: if today’s schedule missing, generate.
-     * IONOS cron can hit this daily at 00:05.
-     */
 public function cronGenerateToday()
 {
     $tz   = config('app.timezone') ?: 'Africa/Lagos';
@@ -420,28 +346,34 @@ public function cronGenerateToday()
      * @param array $categories like [ ['id'=>1,'name'=>'Health','slug'=>'health'], ... ]
      * @return array e.g. [ ['category_id'=>1,'items'=>['...','...']], ... ]
      */
- private function callAiService(array $categories, int $countPerCategory): array
+private function callAiService(array $categories, int $countPerCategory): array
 {
     $requestId = (string) Str::uuid();
     $url = 'https://us-central1-august-theme-472817-g3.cloudfunctions.net/mylegacyjournalsai/generate';
 
     $start = microtime(true);
 
+    // Build the request in a way that works across Laravel versions
+    $req = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'x-api-key'    => 'hrennxbbbbzhyruuio4883jdnm-fhhfnnsmn485hnnmwnfh-ehhssBNDHejjn3',
+            'x-request-id' => $requestId,
+        ])
+        ->timeout(90)                // total time for the request (secs)
+        ->retry(2, 1000);            // 2 retries, 1000 ms backoff
+
+    // Set TCP connect timeout in a backward-compatible way
+    $req = method_exists($req, 'connectTimeout')
+        ? $req->connectTimeout(10)   // newer Laravel versions
+        : $req->withOptions(['connect_timeout' => 10]); // older versions
+
     try {
-        $resp = Http::withHeaders([
-                'Content-Type' => 'application/json',
-                'x-api-key'    => 'hrennxbbbbzhyruuio4883jdnm-fhhfnnsmn485hnnmwnfh-ehhssBNDHejjn3',
-                'x-request-id' => $requestId,
-            ])
-            ->connectTimeout(10)     // TCP connect
-            ->timeout(90)            // total time to first byte + body
-            ->retry(2, 1000)         // 2 retries, 1s backoff
-            ->post($url, [
-                'categories'        => array_values($categories),
-                'countPerCategory'  => $countPerCategory,
-                'tone'              => 'gentle, faith-infused, concise',
-                'maxChars'          => 140,
-            ]);
+        $resp = $req->post($url, [
+            'categories'        => array_values($categories),
+            'countPerCategory'  => $countPerCategory,
+            'tone'              => 'gentle, faith-infused, concise',
+            'maxChars'          => 140,
+        ]);
 
         $ms = (int) round((microtime(true) - $start) * 1000);
         Log::info('AI service timing', ['ms' => $ms, 'status' => $resp->status(), 'reqId' => $requestId]);
@@ -450,7 +382,7 @@ public function cronGenerateToday()
             Log::error('AI service error', [
                 'status' => $resp->status(),
                 'body'   => $resp->body(),
-                'reqId'  => $requestId
+                'reqId'  => $requestId,
             ]);
             return ['error' => 'upstream_error'];
         }
