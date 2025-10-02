@@ -7,7 +7,7 @@ use App\Models\AffirmationCategory;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
-
+use App\Models\AffirmationInstance;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -273,6 +273,16 @@ public function getuserinfoForai (Request $request)
         "userinfo"     => $user,
         "affirmations" => $affirmations
     ]);
+}
+
+
+
+//user get notification
+public function getnotifications(Request $request){
+     $user = JWTAuth::parseToken()->authenticate();
+         $getnotifications = AffirmationInstance::select('text','sent_at')->where("user_id", $user->id)->where("dispatch_status","sent")->get();
+
+      return response()->json($getnotifications);
 }
 
 }

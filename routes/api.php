@@ -53,7 +53,9 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::post('/affirmations/prefs', [AffirmationController::class, 'saveUserPrefs']);
     Route::post('/devices/token', [AffirmationController::class, 'saveDeviceToken']);
     Route::post('reset_password_from_dashboard', [Authcontroller::class, 'update_password_from_dashboard']);
-     Route::get('getusers_profile', [Authcontroller::class, 'getusersProfile']);
+    Route::get('getusers_profile', [Authcontroller::class, 'getusersProfile']);
+    Route::get('getnotifications', [Authcontroller::class, 'getnotifications']);
+     
     // Generate & schedule for the current user (on-demand)
     //Route::post('/affirmations/generate-and-schedule', [AffirmationController::class, 'generateAndScheduleForUser']);
 });
