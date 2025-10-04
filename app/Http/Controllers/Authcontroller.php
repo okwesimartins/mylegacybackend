@@ -45,11 +45,26 @@ class Authcontroller extends Controller
         ]);
 
         $token = JWTAuth::fromUser($user);
+        
+          $otp = random_int(100000, 999999);
+        $expiresAt = Carbon::now()->addMinutes(5)->timestamp;
+
+        // Encrypt payload like your Node version
+        $payload = json_encode([
+            'otp'   => (string)$otp,
+            'exp'   => $expiresAt,
+            'email' => $user->email
+        ]);
+        $encryptedToken = Crypt::encryptString($payload);
+
+        // Send email
+        Mail::to($user->email)->send(new Sendotp($user->name, $otp));
 
         return response()->json([
             'message' => 'Registration successful',
             'user'    => $user,
-            'token'   => $token
+            'token'   => $token,
+            'otp_token'   => $encryptedToken
         ], 201);
     }
 
