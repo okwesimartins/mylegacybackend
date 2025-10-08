@@ -8,6 +8,7 @@ use App\Http\Controllers\GoogleAuthController;
 
 use App\Http\Controllers\AffirmationController;
 
+use App\Http\Controllers\JournalController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -55,7 +56,9 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::post('reset_password_from_dashboard', [Authcontroller::class, 'update_password_from_dashboard']);
     Route::get('getusers_profile', [Authcontroller::class, 'getusersProfile']);
     Route::get('getnotifications', [Authcontroller::class, 'getnotifications']);
-     
+    
+    Route::post('/journal/save', [JournalController::class, 'saveJournal']);
+    Route::get('/journals', [JournalController::class, 'getJournals']);
     // Generate & schedule for the current user (on-demand)
     //Route::post('/affirmations/generate-and-schedule', [AffirmationController::class, 'generateAndScheduleForUser']);
 });
