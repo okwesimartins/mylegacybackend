@@ -90,7 +90,7 @@ public function getJournals()
                 // Decrypt file content
                 $decryptedContent = Crypt::decrypt(file_get_contents($filePath));
                 file_put_contents($filePath, $decryptedContent); // overwrite encrypted file temporarily
-                $audioUrl = url('audio/' . $j->audio);
+                $audioUrl = url('public/audio/' . $j->audio);
             }
         }
 
