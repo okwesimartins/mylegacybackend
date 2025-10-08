@@ -94,6 +94,8 @@ public function getJournals()
             }
         }
 
+        
+
         return [
             'id' => $j->id,
             'name' => $j->name ? Crypt::decryptString($j->name) : null,
