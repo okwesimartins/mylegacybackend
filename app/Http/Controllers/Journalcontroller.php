@@ -87,9 +87,8 @@ public function getJournals()
         if ($j->audio) {
             $filePath = public_path('audio/' . $j->audio);
             if (file_exists($filePath)) {
-                // Decrypt file content
                 $decryptedContent = Crypt::decrypt(file_get_contents($filePath));
-                file_put_contents($filePath, $decryptedContent); // overwrite encrypted file temporarily
+                file_put_contents($filePath, $decryptedContent);
                 $audioUrl = 'https://mylegacyjournals.app/backend/public/audio/' . $j->audio;
             }
         }
@@ -105,5 +104,6 @@ public function getJournals()
 
     return response()->json(['status'=>200,'data'=>$result]);
 }
+
 
 }
