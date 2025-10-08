@@ -10,7 +10,7 @@ class Journals extends Model
     protected $table = 'journals';
     public $timestamps = false;
     protected $fillable = [
-        'name','audio','text','date',
+       'user_id', 'name','audio','text','date',
     ];
   
 }
