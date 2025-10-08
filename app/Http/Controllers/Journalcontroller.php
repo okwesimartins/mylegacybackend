@@ -90,11 +90,9 @@ public function getJournals()
                 // Decrypt file content
                 $decryptedContent = Crypt::decrypt(file_get_contents($filePath));
                 file_put_contents($filePath, $decryptedContent); // overwrite encrypted file temporarily
-                $audioUrl = url('public/audio/' . $j->audio);
+                $audioUrl = 'https://mylegacyjournals.app/backend/public/audio/' . $j->audio;
             }
         }
-
-        
 
         return [
             'id' => $j->id,
