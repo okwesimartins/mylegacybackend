@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Journals;
+use App\Models\Journaltemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Validator;
@@ -45,7 +46,7 @@ class JournalController extends Controller
 //get journal template
     public function getJournaltemplate(Request $request)
     {
-       $templates = Journals::get();
+       $templates = Journaltemplate::get();
 
          return response()->json($templates);
     }
@@ -64,7 +65,7 @@ class JournalController extends Controller
             'date'  => 'nullable|date',
         ]);
 
-        
+
         if ($validator->fails()) {
             return response()->json(['status'=>422,'errors'=>$validator->errors()], 422);
         }
@@ -133,9 +134,13 @@ class JournalController extends Controller
                 $audioUrl = url('/api/journals/audio/' . $j->id . '?sig=' . $sig);
             }
 
+            $gettemplate = Journaltemplate::where("id",$j->template_id)->first();
+
+
+
             return [
                 'id'        => $j->id,
-                'template_id'=> $j->template_id,
+                'template'=> $gettemplate,
                 'name'      => $j->name ? Crypt::decryptString($j->name) : null,
                 'text'      => $j->text ? Crypt::decryptString($j->text) : null,
                 'date'      => $j->date,
