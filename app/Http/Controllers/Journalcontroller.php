@@ -98,7 +98,6 @@ public function getJournals()
             'name' => $j->name ? Crypt::decryptString($j->name) : null,
             'text' => $j->text ? Crypt::decryptString($j->text) : null,
             'date' => $j->date,
-            'audio_url' => $j->audio,
         ];
     });
 
