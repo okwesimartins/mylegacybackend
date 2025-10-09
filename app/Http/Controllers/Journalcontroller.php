@@ -50,9 +50,6 @@ class JournalController extends Controller
          return response()->json($templates);
     }
 
-
-
-    
     public function saveJournal(Request $request)
     {
         $user = JWTAuth::parseToken()->authenticate();
