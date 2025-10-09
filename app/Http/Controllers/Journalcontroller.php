@@ -73,36 +73,36 @@ public function saveJournal(Request $request)
     ]);
 }
 
-public function getJournals()
-{
-    $user = JWTAuth::parseToken()->authenticate();
-    $userId = $user->id;
+// public function getJournals()
+// {
+//     $user = JWTAuth::parseToken()->authenticate();
+//     $userId = $user->id;
 
-    $journals = Journals::where('user_id', $userId)
-        ->orderByDesc('date')
-        ->get();
+//     $journals = Journals::where('user_id', $userId)
+//         ->orderByDesc('date')
+//         ->get();
 
-    $result = $journals->map(function($j) {
-        $audioUrl = null;
-        if ($j->audio) {
-            $filePath = public_path('audio/' . $j->audio);
-            if (file_exists($filePath)) {
-                $decryptedContent = Crypt::decrypt(file_get_contents($filePath));
-                file_put_contents($filePath, $decryptedContent);
-                $audioUrl = 'https://mylegacyjournals.app/backend/public/audio/' . $j->audio;
-            }
-        }
+//     $result = $journals->map(function($j) {
+//         $audioUrl = null;
+//         if ($j->audio) {
+//             $filePath = public_path('audio/' . $j->audio);
+//             if (file_exists($filePath)) {
+//                 $decryptedContent = Crypt::decrypt(file_get_contents($filePath));
+//                 file_put_contents($filePath, $decryptedContent);
+//                 $audioUrl = 'https://mylegacyjournals.app/backend/public/audio/' . $j->audio;
+//             }
+//         }
 
-        return [
-            'id' => $j->id,
-            'name' => $j->name ? Crypt::decryptString($j->name) : null,
-            'text' => $j->text ? Crypt::decryptString($j->text) : null,
-            'date' => $j->date,
-        ];
-    });
+//         return [
+//             'id' => $j->id,
+//             'name' => $j->name ? Crypt::decryptString($j->name) : null,
+//             'text' => $j->text ? Crypt::decryptString($j->text) : null,
+//             'date' => $j->date,
+//         ];
+//     });
 
-    return response()->json(['status'=>200,'data'=>$result]);
-}
+//     return response()->json(['status'=>200,'data'=>$result]);
+// }
 
 
 }
