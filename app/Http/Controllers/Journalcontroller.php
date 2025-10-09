@@ -51,6 +51,8 @@ class JournalController extends Controller
     }
 
 
+
+    
     public function saveJournal(Request $request)
     {
         $user = JWTAuth::parseToken()->authenticate();
