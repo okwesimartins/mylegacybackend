@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use JWTAuth;
 
 class JournalController extends Controller
@@ -15,6 +18,29 @@ class JournalController extends Controller
     /**
      * Create or Update a journal
      */
+    private function flushAllLaravelCaches(): void
+{
+    try {
+        // App/cache stores
+        Cache::flush();
+
+        // Laravel compiled caches
+        Artisan::call('config:clear');   // clears config cache
+        Artisan::call('route:clear');    // clears route cache
+        Artisan::call('view:clear');     // clears compiled views
+        Artisan::call('cache:clear');    // clears app cache
+        Artisan::call('optimize:clear'); // clears events, packages, services, etc.
+
+        // (belt & suspenders) wipe cache directories if anything lingers
+        @File::deleteDirectory(storage_path('framework/cache/data'));
+        @File::deleteDirectory(storage_path('framework/views'));
+        // Don’t delete the directories themselves—Laravel expects them to exist.
+        @File::ensureDirectoryExists(storage_path('framework/cache/data'));
+        @File::ensureDirectoryExists(storage_path('framework/views'));
+    } catch (\Throwable $e) {
+        \Log::warning('flushAllLaravelCaches failed', ['error' => $e->getMessage()]);
+    }
+}
     public function saveJournal(Request $request)
     {
         $user = JWTAuth::parseToken()->authenticate();
@@ -78,7 +104,8 @@ class JournalController extends Controller
      * (audio is streamed decrypted via /api/journals/audio/{id})
      */
     public function getJournals()
-    {
+    {   
+        $this->flushAllLaravelCaches();
         $user = JWTAuth::parseToken()->authenticate();
         $userId = $user->id;
 
@@ -104,7 +131,8 @@ class JournalController extends Controller
             ];
         });
 
-        return response()->json(['status' => 200, 'data' => $result]);
+        return response()->json(['status' => 200, 'data' => $result])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    ->header('Pragma', 'no-cache');;
     }
 
     /**
