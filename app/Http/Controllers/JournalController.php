@@ -64,6 +64,7 @@ class JournalController extends Controller
             'date'  => 'nullable|date',
         ]);
 
+        
         if ($validator->fails()) {
             return response()->json(['status'=>422,'errors'=>$validator->errors()], 422);
         }
