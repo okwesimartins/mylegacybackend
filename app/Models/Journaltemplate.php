@@ -5,12 +5,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 
-class Journals extends Model
+class Journaltemplate extends Model
 {
-    protected $table = 'journals';
+    protected $table = 'journal_template';
     public $timestamps = false;
     protected $fillable = [
-       'user_id', 'name','audio','text','date','template_id',
+       'template',
     ];
   
 }

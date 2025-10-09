@@ -56,7 +56,8 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::post('reset_password_from_dashboard', [Authcontroller::class, 'update_password_from_dashboard']);
     Route::get('getusers_profile', [Authcontroller::class, 'getusersProfile']);
     Route::get('getnotifications', [Authcontroller::class, 'getnotifications']);
-    
+
+    Route::get('/journal_template', [JournalController::class, 'getJournaltemplate']);
     Route::post('/journal/save', [JournalController::class, 'saveJournal']);
     Route::get('/journals', [JournalController::class, 'getJournals']);
     Route::get('/journals/audio/{id}', [JournalController::class, 'streamAudio']);

@@ -40,7 +40,17 @@ class JournalController extends Controller
     } catch (\Throwable $e) {
         \Log::warning('flushAllLaravelCaches failed', ['error' => $e->getMessage()]);
     }
-}
+}   
+
+//get journal template
+    public function getJournaltemplate(Request $request)
+    {
+       $templates = Journals::get();
+
+         return response()->json($templates);
+    }
+
+
     public function saveJournal(Request $request)
     {
         $user = JWTAuth::parseToken()->authenticate();
@@ -49,6 +59,7 @@ class JournalController extends Controller
         $validator = Validator::make($request->all(), [
             'id'    => 'nullable|integer|exists:journals,id',
             'name'  => 'required|string|max:255',
+            'template_id'=>'required',
             'text'  => 'nullable|string',
             'audio' => 'nullable|file|mimes:mp3,wav,ogg|max:10240', // 10MB
             'date'  => 'nullable|date',
@@ -62,7 +73,7 @@ class JournalController extends Controller
 
         $journal = Journals::updateOrCreate(
             ['id' => $request->id ?? 0, 'user_id' => $userId],
-            [
+            [   'template_id'=> $request->template_id,
                 'name' => Crypt::encryptString($request->name),
                 'text' => $encryptedText,
                 'date' => $request->date ?? now(),
@@ -124,6 +135,7 @@ class JournalController extends Controller
 
             return [
                 'id'        => $j->id,
+                'template_id'=> $j->template_id,
                 'name'      => $j->name ? Crypt::decryptString($j->name) : null,
                 'text'      => $j->text ? Crypt::decryptString($j->text) : null,
                 'date'      => $j->date,
