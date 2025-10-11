@@ -61,7 +61,7 @@ class JournalController extends Controller
         $validator = Validator::make($request->all(), [
             'id'          => 'nullable|integer|exists:journals,id',
             'name'        => 'required|string|max:255',
-            'template_id' => 'required|integer|exists:journaltemplate,id',
+            'template_id' => 'required|integer|exists:journal_template,id',
         ]);
 
         if ($validator->fails()) {
