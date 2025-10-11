@@ -58,9 +58,17 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::get('getnotifications', [Authcontroller::class, 'getnotifications']);
 
     Route::get('/journal_template', [JournalController::class, 'getJournaltemplate']);
-    Route::post('/journal/save', [JournalController::class, 'saveJournal']);
-    Route::get('/journals', [JournalController::class, 'getJournals']);
-    Route::get('/journals/audio/{id}', [JournalController::class, 'streamAudio']);
+
+        Route::post('/journals', [JournalController::class, 'saveJournal']);
+    
+        Route::get('/journals', [JournalController::class, 'getJournals']);
+
+    // Entries
+    Route::post('/journals/entry', [JournalController::class, 'saveJournalEntry']);
+    Route::get('/journals/{journalId}/entries', [JournalController::class, 'getJournalEntries']);
+
+    // Attachments streaming
+    Route::get('/journals/attachment/{attachmentId}', [JournalController::class, 'streamAttachment']);
     // Generate & schedule for the current user (on-demand)
     //Route::post('/affirmations/generate-and-schedule', [AffirmationController::class, 'generateAndScheduleForUser']);
 });

@@ -10,7 +10,7 @@ class Journaltemplate extends Model
     protected $table = 'journal_template';
     public $timestamps = false;
     protected $fillable = [
-       'template',
+       'template','background_color_code',
     ];
   
 }

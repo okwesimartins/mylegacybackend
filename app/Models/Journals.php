@@ -10,7 +10,12 @@ class Journals extends Model
     protected $table = 'journals';
     public $timestamps = false;
     protected $fillable = [
-       'user_id', 'name','audio','text','date','template_id',
+       'user_id', 'name','template_id',
     ];
+
+      public function entries()
+    {
+        return $this->hasMany(JournalEntry::class, 'journal_id');
+    }
   
 }
