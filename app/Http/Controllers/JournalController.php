@@ -173,7 +173,7 @@ class JournalController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             \Log::error('saveJournalEntry failed', ['error' => $e->getMessage()]);
-            return response()->json(['status'=>500,'message'=>'save_failed'], 500);
+            return response()->json(['status'=>500,'message'=>'save_failed','error' => $e->getMessage()], 500);
         }
     }
 
