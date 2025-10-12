@@ -191,7 +191,7 @@ class JournalController extends Controller
             ->with(['entries' => function($q){
                 $q->orderByDesc('date')->limit(1);
             }])
-            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->get();
 
         $result = $journals->map(function ($j) {
