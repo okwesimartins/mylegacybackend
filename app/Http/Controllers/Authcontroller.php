@@ -300,6 +300,24 @@ public function getnotifications(Request $request){
       return response()->json($getnotifications);
 }
 
+
+public function touchLastActive(Request $r)
+    {
+        $user = JWTAuth::parseToken()->authenticate();
+
+        // Save server time (UTC) so cron is trustworthy
+        $user->last_active_at = now();
+        $user->save();
+
+        // Optional: return ISO-8601 so clients can log it if they want
+        return response()->json([
+            'status' => 204,
+            'last_active' => $user->last_active_at->toIso8601String(),
+        ], 204);
+    }
+
+
+
 }
 
 

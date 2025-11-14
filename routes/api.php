@@ -88,7 +88,8 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::get('/meta/relationships', [MetaDropdownController::class,'listRelationships']);
 
     Route::get('/meta/triggers', [MetaDropdownController::class,'listTriggers']);
-
+    
+    Route::post('/me/last-active', [Authcontroller::class, 'touchLastActive']);
     //Route::post('/affirmations/generate-and-schedule', [AffirmationController::class, 'generateAndScheduleForUser']);
 });
 
