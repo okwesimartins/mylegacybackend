@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use JWTAuth;
 
 class JournalController extends Controller
@@ -321,4 +322,213 @@ class JournalController extends Controller
         $payload = $entryId . '|' . $attachmentId . '|' . $userId . '|' . $expires;
         return hash_hmac('sha256', $payload, $secret);
     }
+
+
+    //delete Journal Entries
+    public function deleteJournalEntry(Request $request)
+{
+    $user = JWTAuth::parseToken()->authenticate();
+    $userId = $user->id;
+
+    $validator = Validator::make($request->all(), [
+        'journal_id' => 'required|integer|exists:journals,id',
+        'entry_id'   => 'required|integer|exists:journal_entries,id',
+        'hard'       => 'sometimes|boolean', // optional: force hard delete
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['status' => 422, 'errors' => $validator->errors()], 422);
+    }
+
+    // Ensure journal belongs to the authenticated user
+    $journal = Journals::where('id', $request->journal_id)
+        ->where('user_id', $userId)
+        ->first();
+
+    if (!$journal) {
+        return response()->json(['status' => 403, 'message' => 'forbidden'], 403);
+    }
+
+    // Ensure entry belongs to this journal
+    $entry = JournalEntry::where('id', $request->entry_id)
+        ->where('journal_id', $journal->id)
+        ->first();
+
+    if (!$entry) {
+        return response()->json(['status' => 404, 'message' => 'entry_not_found'], 404);
+    }
+
+    // Helper: detect SoftDeletes usage on the model
+    $usesSoftDeletes = in_array(SoftDeletes::class, class_uses_recursive(get_class($entry)));
+    $forceDelete = (bool) $request->boolean('hard', false);
+
+    DB::beginTransaction();
+    try {
+        // Remove attachments (files + rows)
+        $attachments = JournalAttachment::where('entry_id', $entry->id)->get();
+        $deletedFiles = 0;
+
+        $basePath = storage_path('app/journal_attachments'); // not public
+        foreach ($attachments as $att) {
+            $filePath = $basePath . DIRECTORY_SEPARATOR . $att->stored_name;
+
+            // best-effort file delete
+            try {
+                if (is_file($filePath)) {
+                    @unlink($filePath);
+                    $deletedFiles++;
+                }
+            } catch (\Throwable $e) {
+                // swallow file unlink errors; keep deleting DB rows
+                \Log::warning('Attachment unlink failed', [
+                    'entry_id' => $entry->id,
+                    'file' => $filePath,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            // remove attachment row (hard delete)
+            $att->delete();
+        }
+
+        // Delete the entry (soft or hard)
+        if ($usesSoftDeletes && $forceDelete) {
+            $entry->forceDelete();
+        } else {
+            $entry->delete(); // soft delete if enabled; hard if not
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'status'            => 200,
+            'message'           => $forceDelete ? 'entry_deleted_permanently' : 'entry_deleted',
+            'entry_id'          => $entry->id,
+            'attachments_removed'=> $deletedFiles,
+        ], 200);
+
+    } catch (\Throwable $e) {
+        DB::rollBack();
+        \Log::error('deleteJournalEntry failed', [
+            'entry_id' => $request->entry_id,
+            'error'    => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'status'  => 500,
+            'message' => 'delete_failed',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
+
+public function deleteJournal(Request $request)
+{
+    $user = JWTAuth::parseToken()->authenticate();
+    $userId = $user->id;
+
+    $validator = Validator::make($request->all(), [
+        'journal_id' => 'required|integer|exists:journals,id',
+        'hard'       => 'sometimes|boolean', // optional: force hard delete (bypass soft-deletes)
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['status' => 422, 'errors' => $validator->errors()], 422);
+    }
+
+    // Ensure journal belongs to user
+    $journal = Journals::where('id', $request->journal_id)
+        ->where('user_id', $userId)
+        ->first();
+
+    if (!$journal) {
+        return response()->json(['status' => 403, 'message' => 'forbidden'], 403);
+    }
+
+    $usesSoftDeletesJournal = in_array(SoftDeletes::class, class_uses_recursive(get_class($journal)));
+    $forceDelete            = (bool) $request->boolean('hard', false);
+
+    $basePath = storage_path('app/journal_attachments'); // encrypted, non-public
+    $totalDeletedFiles   = 0;
+    $totalDeletedEntries = 0;
+
+    DB::beginTransaction();
+    try {
+        // Stream (chunk) through entries to delete attachments + entries
+        JournalEntry::where('journal_id', $journal->id)
+            ->select('id') // keep it lean
+            ->chunkById(200, function ($entries) use (
+                &$totalDeletedFiles,
+                &$totalDeletedEntries,
+                $basePath
+            ) {
+                $entryIds = $entries->pluck('id')->all();
+
+                // Fetch attachments for these entries
+                $attachments = JournalAttachment::whereIn('entry_id', $entryIds)->get();
+
+                foreach ($attachments as $att) {
+                    $filePath = $basePath . DIRECTORY_SEPARATOR . $att->stored_name;
+                    try {
+                        if (is_file($filePath)) {
+                            @unlink($filePath);
+                            $totalDeletedFiles++;
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning('Attachment unlink failed', [
+                            'entry_id' => $att->entry_id,
+                            'file'     => $filePath,
+                            'error'    => $e->getMessage()
+                        ]);
+                    }
+                    // Remove attachment row
+                    $att->delete();
+                }
+
+                // Delete entries (soft or hard depending on model)
+                // Detect SoftDeletes usage on JournalEntry model from first row (or via class directly)
+                $entryModel = new JournalEntry;
+                $usesSoftDeletesEntry = in_array(SoftDeletes::class, class_uses_recursive(get_class($entryModel)));
+
+                if ($usesSoftDeletesEntry && request()->boolean('hard', false)) {
+                    JournalEntry::whereIn('id', $entryIds)->forceDelete();
+                } else {
+                    JournalEntry::whereIn('id', $entryIds)->delete();
+                }
+
+                $totalDeletedEntries += count($entryIds);
+            });
+
+        // Finally delete the journal row
+        if ($usesSoftDeletesJournal && $forceDelete) {
+            $journal->forceDelete();
+        } else {
+            $journal->delete(); // soft if enabled; hard if not
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'status'               => 200,
+            'message'              => $forceDelete ? 'journal_deleted_permanently' : 'journal_deleted',
+            'journal_id'           => (int) $request->journal_id,
+            'entries_removed'      => $totalDeletedEntries,
+            'attachments_removed'  => $totalDeletedFiles,
+        ], 200);
+
+    } catch (\Throwable $e) {
+        DB::rollBack();
+        \Log::error('deleteJournal failed', [
+            'journal_id' => $request->journal_id,
+            'error'      => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'status'  => 500,
+            'message' => 'delete_failed',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
+
 }

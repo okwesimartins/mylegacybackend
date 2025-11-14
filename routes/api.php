@@ -9,6 +9,8 @@ use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\AffirmationController;
 
 use App\Http\Controllers\JournalController;
+
+use App\Http\Controllers\CronController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -59,19 +61,38 @@ Route::group(['middleware'=>['auth.customer']], function(){
 
     Route::get('/journal_template', [JournalController::class, 'getJournaltemplate']);
 
-        Route::post('/journals', [JournalController::class, 'saveJournal']);
+    Route::post('/journals', [JournalController::class, 'saveJournal']);
     
-        Route::get('/journals', [JournalController::class, 'getJournals']);
-
+    Route::get('/journals', [JournalController::class, 'getJournals']);
+    
+    Route::post('delete/journals', [JournalController::class, 'deleteJournal']);
+    
     // Entries
     Route::post('/journals/entry', [JournalController::class, 'saveJournalEntry']);
     Route::get('/journals/{journalId}/entries', [JournalController::class, 'getJournalEntries']);
-
+    
+    //Delete journal entries 
+    Route::post('delete/journals/entry', [JournalController::class, 'deleteJournalEntry']);
+    
     // Attachments streaming
     Route::get('/journals/attachment/{attachmentId}', [JournalController::class, 'streamAttachment']);
     // Generate & schedule for the current user (on-demand)
+    
+
+    //next of kin
+    Route::get('/nok', [JournalNextOfKinController::class,'index']);
+    Route::post('/nok', [JournalNextOfKinController::class,'create']);
+    Route::patch('/nok/{id}', [JournalNextOfKinController::class,'update']);
+    
+    //meta 
+    Route::get('/meta/relationships', [MetaDropdownController::class,'listRelationships']);
+
+    Route::get('/meta/triggers', [MetaDropdownController::class,'listTriggers']);
+
     //Route::post('/affirmations/generate-and-schedule', [AffirmationController::class, 'generateAndScheduleForUser']);
 });
+
+Route::get('/cron/nok-dispatch', [CronController::class, 'dispatchNoKInvites']);
 
 // CRON (public or protect with a secret query param)
 Route::get('/cron/affirmations/generate-today', [AffirmationController::class, 'cronGenerateToday']);
