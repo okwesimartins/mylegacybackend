@@ -18,7 +18,7 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 
 class JournalNextOfKinController extends Controller
 {
-    public function createNok(Request $r)
+    public function createnexofkin(Request $r)
     {
         $user = JWTAuth::parseToken()->authenticate();
 
@@ -74,7 +74,7 @@ class JournalNextOfKinController extends Controller
         ], 201);
     }
 
-    public function updateNok(Request $r, $id)
+    public function updatenexofkin(Request $r, $id)
     {
         $user = JWTAuth::parseToken()->authenticate();
         $nok = JournalNextOfKin::where('id', $id)->where('user_id', $user->id)->first();
@@ -112,7 +112,7 @@ class JournalNextOfKinController extends Controller
     }
 
     // List for owner
-    public function indexNok(Request $r)
+    public function getnexofkin(Request $r)
     {
         $user = JWTAuth::parseToken()->authenticate();
         $list = JournalNextOfKin::with(['relationship','trigger','journals:id,title'])
