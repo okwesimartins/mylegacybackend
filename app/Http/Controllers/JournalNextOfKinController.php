@@ -25,9 +25,9 @@ class JournalNextOfKinController extends Controller
         $data = $r->validate([
             'name'                 => 'required|string|max:120',
             'email'                => 'required|email',
-            'relationship_type_id' => 'required|exists:relationship_types,id',
+            'relationship_type_id' => 'required|exists:relationship_type,id',
             'phone'                => 'nullable|string|max:40',
-            'trigger_type_id'      => 'required|exists:trigger_types,id',
+            'trigger_type_id'      => 'required|exists:trigger_type,id',
             'personal_message'     => 'nullable|string',
             'journal_ids'          => 'required|array|min:1',
             'journal_ids.*'        => 'integer|exists:journals,id',
