@@ -13,7 +13,7 @@ use App\Models\User;
 use App\Models\JournalNextOfKin;
 use App\Models\Journals;
 use App\Models\TriggerType;
-use App\Mail\NextOfKinInviteMail;
+use App\Mail\Nextofkininvitemail;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class JournalNextOfKinController extends Controller
@@ -178,7 +178,7 @@ class JournalNextOfKinController extends Controller
         ];
 
         if (!$previewOnly) {
-            Mail::to($nok->email)->send(new NextOfKinInviteMail($payload));
+            Mail::to($nok->email)->send(new Nextofkininvitemail($payload));
             $nok->update(['delivered_at'=>now(),'status'=>'SENT']);
         }
     }

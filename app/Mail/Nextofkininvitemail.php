@@ -4,7 +4,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class NextOfKinInviteMail extends Mailable
+class Nextofkininvitemail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -15,7 +15,7 @@ class NextOfKinInviteMail extends Mailable
     public function build()
     {
         return $this->subject('A Special Memory Awaits You — My Legacy Journals')
-            ->view('emails.nok_invite') // create a blade from your screenshot style
+            ->view('nok_invite') // create a blade from your screenshot style
             ->with($this->payload);
     }
 }
