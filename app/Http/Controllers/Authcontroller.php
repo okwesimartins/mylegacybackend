@@ -234,8 +234,8 @@ public function update_password_from_dashboard(Request $request){
             if($validator->fails()){
                     return response()->json($validator->errors(), 400);
             }else{
-                 $token = JWTAuth::parseToken()->getPayload()->toArray();
-                   $id=$token['id'];
+                 $token = JWTAuth::parseToken()->authenticate();
+                   $id=$token->id;
                    
                  $user= User::where('id', $id)->first();
                 $pass=$user->password;
