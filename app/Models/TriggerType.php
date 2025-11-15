@@ -5,5 +5,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class TriggerType extends Model {
+    protected $table = 'trigger_type';
     protected $fillable = ['name','kind','inactivity_days'];
 }
