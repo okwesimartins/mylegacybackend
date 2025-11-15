@@ -229,11 +229,20 @@ class JournalNextOfKinController extends Controller
 
     // App access: permanent invite + passkey (no short-lived tokens)
 public function access(Request $r)
-{
-    $data = $r->validate([
+{   
+    $validator = Validator::make($r->all(), [
         'invite'  => 'required|string',
         'passkey' => 'required|string',
     ]);
+
+
+    
+           if ($validator->fails()) {
+        return response()->json([
+            'status' => 422,
+            'errors' => $validator->errors(),
+        ], 422);
+    }
 
     $nok = JournalNextOfKin::where('invite_token', $data['invite'])->first();
     if (!$nok || !Hash::check($data['passkey'], $nok->passkey_hash)) {
