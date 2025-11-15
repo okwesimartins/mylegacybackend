@@ -22,24 +22,25 @@ class JournalNextOfKinController extends Controller
     {
         $user = JWTAuth::parseToken()->authenticate();
 
+
+        $data = $r->validate([
+            'name'                 => 'required|string|max:120',
+            'email'                => 'required|email',
+            'relationship_type_id' => 'required|exists:relationship_type,id',
+            'phone'                => 'nullable|string|max:40',
+            'trigger_type_id'      => 'required|exists:trigger_type,id',
+            'personal_message'     => 'nullable|string',
+            'journal_ids'          => 'required|array|min:1',
+            'journal_ids.*'        => 'integer|exists:journals,id',
+            'passkey'              => 'required|string|min:6|max:32',
+        ]);
+
+        
           return response()->json([
             'status' => $user
             // 'nok_id' => $nok->id,
             // 'message'=> 'created' . ($trigger && strtolower($trigger->kind)==='instant' ? ' (instant email queued)' : '')
         ], 201);
-
-        // $data = $r->validate([
-        //     'name'                 => 'required|string|max:120',
-        //     'email'                => 'required|email',
-        //     'relationship_type_id' => 'required|exists:relationship_type,id',
-        //     'phone'                => 'nullable|string|max:40',
-        //     'trigger_type_id'      => 'required|exists:trigger_type,id',
-        //     'personal_message'     => 'nullable|string',
-        //     'journal_ids'          => 'required|array|min:1',
-        //     'journal_ids.*'        => 'integer|exists:journals,id',
-        //     'passkey'              => 'required|string|min:6|max:32',
-        // ]);
-
         // // Ensure journals belong to owner
         // $owned = Journals::whereIn('id', $data['journal_ids'])
         //     ->where('user_id', $user->id)
