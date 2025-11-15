@@ -13,6 +13,9 @@ use App\Http\Controllers\JournalController;
 use App\Http\Controllers\CronController;
 
 use App\Http\Controllers\MetaDropdownController;
+
+use App\Http\Controllers\JournalNextOfKinController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
