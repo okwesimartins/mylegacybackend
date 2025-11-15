@@ -178,7 +178,7 @@ class JournalNextOfKinController extends Controller
         ];
 
         if (!$previewOnly) {
-            Mail::to($nok->email)->queue(new NextOfKinInviteMail($payload));
+            Mail::to($nok->email)->send(new NextOfKinInviteMail($payload));
             $nok->update(['delivered_at'=>now(),'status'=>'SENT']);
         }
     }
