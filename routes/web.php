@@ -17,4 +17,4 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/nok/access', [LinkController::class, 'nokLanding'])->name('links.nok');
+Route::get('/links/nok/access', [LinkController::class, 'nokLanding'])->name('links.nok');

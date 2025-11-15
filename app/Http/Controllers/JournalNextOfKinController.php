@@ -14,6 +14,7 @@ use App\Models\JournalNextOfKin;
 use App\Models\Journals;
 use App\Models\TriggerType;
 use App\Mail\Nextofkininvitemail;
+use App\Models\JournalEntry;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class JournalNextOfKinController extends Controller
@@ -74,7 +75,7 @@ class JournalNextOfKinController extends Controller
         $trigger = TriggerType::find($data['trigger_type_id']);
         if ($trigger && strtolower((string)$trigger->kind) === 'instant') {
             // Generate invite now and send the email
-            $this->sendInviteEmail($nok, null, false);
+            $this->sendInviteEmail($nok, $data['passkey'], false);
         }
 
         return response()->json([
@@ -153,35 +154,55 @@ class JournalNextOfKinController extends Controller
     }
 
     // Compose & send email (uses your landing-page deep link)
-    private function sendInviteEmail(JournalNextOfKin $nok, ?string $passkey = null, bool $previewOnly = false)
-    {
-        $owner = $nok->user_id ? User::find($nok->user_id) : null;
+  private function sendInviteEmail(JournalNextOfKin $nok, ?string $passkey = null, bool $previewOnly = false)
+{
+    $owner = $nok->user_id ? User::find($nok->user_id) : null;
+    $invite = $this->ensureInviteToken($nok);
 
-        $invite = $this->ensureInviteToken($nok);
+    $base = rtrim(env('NOK_LINK_BASE', 'https://mylegacyjournals.app/backend/links/nok/access'), '/');
+    $deepLink = $base . '?invite=' . urlencode($invite);
 
-        // Build the full URL your email button should use
-        $base = rtrim(env('NOK_LINK_BASE', 'https://mylegacyjournals.app/backend/links/nok/access'), '/');
-        $deepLink = $base . '?invite=' . urlencode($invite);
+    // Get all journals + decrypted entries
+    $journalMeta = $nok->journals()
+        ->select('id', 'name')
+        ->get()
+        ->map(function ($j) {
+            // Get & decrypt entries
+            $entries = JournalEntry::where('journal_id', $j->id)->get();
+            $decodedEntries = [];
 
-        $journalMeta = $nok->journals()->select('id','name')->get()
-            ->map(fn($j)=>['id'=>$j->id,'title'=>$j->name,'entries'=>$j->entries_count ?? null])
-            ->values()->all();
+            foreach ($entries as $entry) {
+                try {
+                    $decodedTitle = $entry->title ? Crypt::decryptString($entry->title) : '(untitled)';
+                } catch (\Throwable $e) {
+                    $decodedTitle = '[unable to decrypt]';
+                }
+                $decodedEntries[] = $decodedTitle;
+            }
 
-        $payload = [
-            'owner_name'   => $owner?->name ?? 'A loved one',
-            'relationship' => $nok->relationship?->name ?? 'Family',
-            'journal_meta' => $journalMeta,
-            'deep_link'    => $deepLink,  // <-- email template should render this in the button
-            // Only include passkey if you explicitly want to (usually NO)
-            'passkey'      => $passkey,
-            'message'      => $nok->personal_message,
-        ];
+            return [
+                'id'       => $j->id,
+                'title'    => $j->name,
+                'entries'  => $decodedEntries, // now an array of decoded titles
+            ];
+        })
+        ->values()
+        ->all();
 
-        if (!$previewOnly) {
-            Mail::to($nok->email)->send(new Nextofkininvitemail($payload));
-            $nok->update(['delivered_at'=>now(),'status'=>'SENT']);
-        }
+    $payload = [
+        'owner_name'   => $owner?->name ?? 'A loved one',
+        'relationship' => $nok->relationship?->name ?? 'Family',
+        'journal_meta' => $journalMeta,
+        'deep_link'    => $deepLink,
+        'passkey'      => $passkey,
+        'message'      => $nok->personal_message,
+    ];
+
+    if (!$previewOnly) {
+        Mail::to($nok->email)->send(new Nextofkininvitemail($payload));
+        $nok->update(['delivered_at' => now(), 'status' => 'SENT']);
     }
+}
 
     public function destroy(Request $r, $id)
     {
