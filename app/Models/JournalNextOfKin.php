@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class JournalNextOfKin extends Model {
     protected $table = 'journal_next_of_kin';
+     public $timestamps = false;
     protected $fillable = [
         'user_id','name','email','phone','relationship_type_id','trigger_type_id',
         'personal_message','passkey_hash','delivered_at','status','invite_token',
