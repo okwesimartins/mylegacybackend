@@ -1,5 +1,5 @@
 <?php
-
+namespace App\Http\Controllers;
 use App\Models\TriggerType;
 use App\Models\RelationshipType;
 use Illuminate\Http\Request;
