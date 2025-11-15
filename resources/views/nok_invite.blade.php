@@ -19,12 +19,22 @@
     @endif
   </div>
 
-  <h3>Your Inherited Journal(s)</h3>
-  <ul>
-    @foreach($payload['journal_meta'] as $j)
-      <li>{{ $j['title'] }} — {{ $j['entries'] }} entries</li>
-    @endforeach
-  </ul>
+ <h3>Your Inherited Journal(s)</h3>
+
+@foreach($payload['journal_meta'] as $journal)
+  <div style="margin-bottom:10px;">
+    <strong>{{ $journal['title'] }}</strong>
+    @if(!empty($journal['entries']))
+      <ul style="margin:5px 0 0 15px;padding:0;">
+        @foreach($journal['entries'] as $entry)
+          <li>{{ $entry }}</li>
+        @endforeach
+      </ul>
+    @else
+      <p style="color:#777;">(No entries yet)</p>
+    @endif
+  </div>
+@endforeach
 
   <div style="padding:12px;background:#f7f7f7;border-radius:8px;margin:16px 0;">
     <strong>Your Pass Key:</strong> <code>{{ $payload['passkey'] }}</code>

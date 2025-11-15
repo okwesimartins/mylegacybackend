@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -171,6 +172,13 @@ class JournalNextOfKinController extends Controller
             $entries = JournalEntry::where('journal_id', $j->id)->get();
             $decodedEntries = [];
 
+               try {
+            $decodedName = $j->name ? Crypt::decryptString($j->name) : '(untitled)';
+        } catch (\Throwable $e) {
+            $decodedName = '[unable to decrypt]';
+        }
+
+
             foreach ($entries as $entry) {
                 try {
                     $decodedTitle = $entry->title ? Crypt::decryptString($entry->title) : '(untitled)';
@@ -182,7 +190,7 @@ class JournalNextOfKinController extends Controller
 
             return [
                 'id'       => $j->id,
-                'title'    => $j->name,
+                'title'    => $decodedName,
                 'entries'  => $decodedEntries, // now an array of decoded titles
             ];
         })
@@ -220,29 +228,44 @@ class JournalNextOfKinController extends Controller
     }
 
     // App access: permanent invite + passkey (no short-lived tokens)
-    public function access(Request $r)
-    {
-        $data = $r->validate([
-            'invite'  => 'required|string',
-            'passkey' => 'required|string',
-        ]);
+public function access(Request $r)
+{
+    $data = $r->validate([
+        'invite'  => 'required|string',
+        'passkey' => 'required|string',
+    ]);
 
-        $nok = JournalNextOfKin::where('invite_token', $data['invite'])->first();
-        if (!$nok || !Hash::check($data['passkey'], $nok->passkey_hash)) {
-            return response()->json(['status'=>401,'message'=>'invalid_credentials'], 401);
-        }
-
-        if ($nok->status !== 'ACCESSED') {
-            $nok->update(['status' => 'ACCESSED']);
-        }
-
-        $journals = $nok->journals()->select('journals.id','journals.name')->get();
-
-        return response()->json([
-            'status'   => 200,
-            'nok_id'   => $nok->id,
-            'invite'   => $nok->invite_token,
-            'journals' => $journals,
-        ]);
+    $nok = JournalNextOfKin::where('invite_token', $data['invite'])->first();
+    if (!$nok || !Hash::check($data['passkey'], $nok->passkey_hash)) {
+        return response()->json(['status'=>401,'message'=>'invalid_credentials'], 401);
     }
+
+    if ($nok->status !== 'ACCESSED') {
+        $nok->update(['status' => 'ACCESSED']);
+    }
+
+    // Fetch and DECRYPT each journal name
+    $journals = $nok->journals()
+        ->select('journals.id','journals.name')
+        ->get()
+        ->map(function ($j) {
+            try {
+                $decodedName = $j->name ? Crypt::decryptString($j->name) : '(untitled)';
+            } catch (\Throwable $e) {
+                $decodedName = '[unable to decrypt]';
+            }
+            return [
+                'id'    => $j->id,
+                'title' => $decodedName, // return as "title" for the app
+            ];
+        })
+        ->values();
+
+    return response()->json([
+        'status'   => 200,
+        'nok_id'   => $nok->id,
+        'invite'   => $nok->invite_token,
+        'journals' => $journals,
+    ]);
+}
 }
