@@ -134,7 +134,7 @@ class JournalNextOfKinController extends Controller
     public function getnexofkin(Request $r)
     {
         $user = JWTAuth::parseToken()->authenticate();
-        $list = JournalNextOfKin::with(['relationship','trigger','journals:id,title'])
+        $list = JournalNextOfKin::with(['relationship','trigger','journals:id,name'])
             ->where('user_id', $user->id)
             ->orderByDesc('id')
             ->get();
@@ -163,8 +163,8 @@ class JournalNextOfKinController extends Controller
         $base = rtrim(env('NOK_LINK_BASE', 'https://mylegacyjournals.app/backend/links/nok/access'), '/');
         $deepLink = $base . '?invite=' . urlencode($invite);
 
-        $journalMeta = $nok->journals()->select('id','title')->get()
-            ->map(fn($j)=>['id'=>$j->id,'title'=>$j->title,'entries'=>$j->entries_count ?? null])
+        $journalMeta = $nok->journals()->select('id','name')->get()
+            ->map(fn($j)=>['id'=>$j->id,'title'=>$j->name,'entries'=>$j->entries_count ?? null])
             ->values()->all();
 
         $payload = [
@@ -215,7 +215,7 @@ class JournalNextOfKinController extends Controller
             $nok->update(['status' => 'ACCESSED']);
         }
 
-        $journals = $nok->journals()->select('journals.id','journals.title')->get();
+        $journals = $nok->journals()->select('journals.id','journals.name')->get();
 
         return response()->json([
             'status'   => 200,
