@@ -89,6 +89,8 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::get('/nok', [JournalNextOfKinController::class,'getnexofkin']);
     Route::post('/updatenok/{id}', [JournalNextOfKinController::class,'updatenexofkin']);
     
+    Route::post('/accessnok', [JournalNextOfKinController::class,'access']);
+    
     //meta 
     Route::get('/meta/relationships', [MetaDropdownController::class,'listRelationships']);
 

@@ -129,20 +129,63 @@ class JournalNextOfKinController extends Controller
         }
 
         $nok->update($data);
+
+         // Send immediately for instant triggers
+        $trigger = TriggerType::find($data['trigger_type_id']);
+        if ($trigger && strtolower((string)$trigger->kind) === 'instant') {
+            // Generate invite now and send the email
+            $this->sendInviteEmail($nok, $data['passkey'], false);
+        }
         return response()->json(['status'=>200,'message'=>'updated']);
     }
 
     // List for owner
-    public function getnexofkin(Request $r)
-    {
-        $user = JWTAuth::parseToken()->authenticate();
-        $list = JournalNextOfKin::with(['relationship','trigger','journals:id,name'])
-            ->where('user_id', $user->id)
-            ->orderByDesc('id')
-            ->get();
+   public function getnexofkin(Request $r)
+{
+    $user = JWTAuth::parseToken()->authenticate();
 
-        return response()->json(['status'=>200,'nok'=>$list]);
-    }
+    // Eager-load journals with id + name (encrypted), plus relationship/trigger
+    $rows = JournalNextOfKin::with([
+            'relationship',
+            'trigger',
+            'journals:id,name' // we'll decrypt "name" below
+        ])
+        ->where('user_id', $user->id)
+        ->orderByDesc('id')
+        ->get();
+
+    // Transform to a clean payload: journals => [{id, title:<decrypted>}]
+    $payload = $rows->map(function ($nok) {
+        $journals = $nok->journals->map(function ($j) {
+            // Decrypt each journal name safely
+            try {
+                $title = $j->name ? Crypt::decryptString($j->name) : '(untitled)';
+            } catch (\Throwable $e) {
+                $title = '[unable to decrypt]';
+            }
+            return [
+                'id'    => $j->id,
+                'title' => $title,   // only decrypted title is returned
+            ];
+        })->values();
+
+        return [
+            'id'               => $nok->id,
+            'name'             => $nok->name,
+            'email'            => $nok->email,
+            'phone'            => $nok->phone,
+            'relationship'     => $nok->relationship?->name,
+            'trigger'          => $nok->trigger?->name,
+            'trigger_type_id'  => $nok->trigger_type_id,
+            'relationship_type_id' => $nok->relationship_type_id,
+            'status'           => $nok->status,
+            'delivered_at'     => $nok->delivered_at,
+            'journals'         => $journals,
+        ];
+    })->values();
+
+    return response()->json(['status' => 200, 'nok' => $payload]);
+}
 
     // Ensure/create a permanent invite token on the NOK row
     private function ensureInviteToken(JournalNextOfKin $nok): string
