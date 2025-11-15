@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 use App\Models\JournalNextOfKin;
 use App\Models\Journals;
@@ -23,112 +23,124 @@ class JournalNextOfKinController extends Controller
         $user = JWTAuth::parseToken()->authenticate();
 
 
-        $data = $r->validate([
-            'name'                 => 'required|string|max:120',
-            'email'                => 'required|email',
-            'relationship_type_id' => 'required|exists:relationship_type,id',
-            'phone'                => 'nullable|string|max:40',
-            'trigger_type_id'      => 'required|exists:trigger_type,id',
-            'personal_message'     => 'nullable|string',
-            'journal_ids'          => 'required|array|min:1',
-            'journal_ids.*'        => 'integer|exists:journals,id',
-            'passkey'              => 'required|string|min:6|max:32',
-        ]);
+          $validator = Validator::make($r->all(), [
+        'name'                 => 'required|string|max:120',
+        'email'                => 'required|email',
+        'relationship_type_id' => 'required|integer|exists:relationship_type,id', // <-- plural
+        'phone'                => 'nullable|string|max:40',
+        'trigger_type_id'      => 'required|integer|exists:trigger_type,id',     // <-- plural
+        'personal_message'     => 'nullable|string',
+        'journal_ids'          => 'required|array|min:1',
+        'journal_ids.*'        => 'required|integer|distinct|exists:journals,id', // distinct helps
+        'passkey'              => 'required|string|min:6|max:32',
+    ]);
 
         
-          return response()->json([
-            'status' => $user
-            // 'nok_id' => $nok->id,
-            // 'message'=> 'created' . ($trigger && strtolower($trigger->kind)==='instant' ? ' (instant email queued)' : '')
-        ], 201);
-        // // Ensure journals belong to owner
-        // $owned = Journals::whereIn('id', $data['journal_ids'])
-        //     ->where('user_id', $user->id)
-        //     ->count();
-        // if ($owned !== count($data['journal_ids'])) {
-        //     return response()->json(['status'=>403,'message'=>'journal_ownership_mismatch'], 403);
-        // }
-
-        // // Create NOK + sync journals
-        // $nok = DB::transaction(function () use ($user, $data) {
-        //     $nok = JournalNextOfKin::create([
-        //         'user_id'             => $user->id,
-        //         'name'                => $data['name'],
-        //         'email'               => $data['email'],
-        //         'phone'               => $data['phone'] ?? null,
-        //         'relationship_type_id'=> $data['relationship_type_id'],
-        //         'trigger_type_id'     => $data['trigger_type_id'],
-        //         'personal_message'    => $data['personal_message'] ?? null,
-        //         'passkey_hash'        => Hash::make($data['passkey']),
-        //         'status'              => 'PENDING',
-        //         // 'invite_token' is created lazily when emailing or on demand
-        //     ]);
-        //     $nok->journals()->sync($data['journal_ids']);
-        //     return $nok;
-        // });
-
-        // // Send immediately for instant triggers
-        // $trigger = TriggerType::find($data['trigger_type_id']);
-        // if ($trigger && strtolower((string)$trigger->kind) === 'instant') {
-        //     // Generate invite now and send the email
-        //     $this->sendInviteEmail($nok, null, false);
-        // }
-
-        // return response()->json([
-        //     'status' => 201,
-        //     'nok_id' => $nok->id,
-        //     'message'=> 'created' . ($trigger && strtolower($trigger->kind)==='instant' ? ' (instant email queued)' : '')
-        // ], 201);
+           if ($validator->fails()) {
+        return response()->json([
+            'status' => 422,
+            'errors' => $validator->errors(),
+        ], 422);
     }
 
-    // public function updatenexofkin(Request $r, $id)
-    // {
-    //     $user = JWTAuth::parseToken()->authenticate();
-    //     $nok = JournalNextOfKin::where('id', $id)->where('user_id', $user->id)->first();
-    //     if (!$nok) return response()->json(['status'=>404,'message'=>'not_found'], 404);
+    $data = $validator->validated();
+        // // Ensure journals belong to owner
+        $owned = Journals::whereIn('id', $data['journal_ids'])
+            ->where('user_id', $user->id)
+            ->count();
+        if ($owned !== count($data['journal_ids'])) {
+            return response()->json(['status'=>403,'message'=>'journal_ownership_mismatch'], 403);
+        }
 
-    //     $data = $r->validate([
-    //         'name'                 => 'sometimes|string|max:120',
-    //         'email'                => 'sometimes|email',
-    //         'phone'                => 'nullable|string|max:40',
-    //         'relationship_type_id' => 'sometimes|exists:relationship_types,id',
-    //         'trigger_type_id'      => 'sometimes|exists:trigger_types,id',
-    //         'personal_message'     => 'nullable|string',
-    //         'journal_ids'          => 'sometimes|array|min:1',
-    //         'journal_ids.*'        => 'integer|exists:journals,id',
-    //         'passkey'              => 'sometimes|string|min:6|max:32',
-    //     ]);
+        // Create NOK + sync journals
+        $nok = DB::transaction(function () use ($user, $data) {
+            $nok = JournalNextOfKin::create([
+                'user_id'             => $user->id,
+                'name'                => $data['name'],
+                'email'               => $data['email'],
+                'phone'               => $data['phone'] ?? null,
+                'relationship_type_id'=> $data['relationship_type_id'],
+                'trigger_type_id'     => $data['trigger_type_id'],
+                'personal_message'    => $data['personal_message'] ?? null,
+                'passkey_hash'        => Hash::make($data['passkey']),
+                'status'              => 'PENDING',
+                // 'invite_token' is created lazily when emailing or on demand
+            ]);
+            $nok->journals()->sync($data['journal_ids']);
+            return $nok;
+        });
 
-    //     if (isset($data['journal_ids'])) {
-    //         $owned = Journals::whereIn('id', $data['journal_ids'])
-    //             ->where('user_id', $user->id)->count();
-    //         if ($owned !== count($data['journal_ids'])) {
-    //             return response()->json(['status'=>403,'message'=>'journal_ownership_mismatch'], 403);
-    //         }
-    //         $nok->journals()->sync($data['journal_ids']);
-    //         unset($data['journal_ids']);
-    //     }
+        // Send immediately for instant triggers
+        $trigger = TriggerType::find($data['trigger_type_id']);
+        if ($trigger && strtolower((string)$trigger->kind) === 'instant') {
+            // Generate invite now and send the email
+            $this->sendInviteEmail($nok, null, false);
+        }
 
-    //     if (isset($data['passkey'])) {
-    //         $data['passkey_hash'] = Hash::make($data['passkey']);
-    //         unset($data['passkey']);
-    //     }
+        return response()->json([
+            'status' => 201,
+            'nok_id' => $nok->id,
+            'message'=> 'created' . ($trigger && strtolower($trigger->kind)==='instant' ? ' (instant email queued)' : '')
+        ], 201);
+    }
 
-    //     $nok->update($data);
-    //     return response()->json(['status'=>200,'message'=>'updated']);
-    // }
+    public function updatenexofkin(Request $r, $id)
+    {
+        $user = JWTAuth::parseToken()->authenticate();
+        $nok = JournalNextOfKin::where('id', $id)->where('user_id', $user->id)->first();
+        if (!$nok) return response()->json(['status'=>404,'message'=>'not_found'], 404);
 
-    // // List for owner
-    // public function getnexofkin(Request $r)
-    // {
-    //     $user = JWTAuth::parseToken()->authenticate();
-    //     $list = JournalNextOfKin::with(['relationship','trigger','journals:id,title'])
-    //         ->where('user_id', $user->id)
-    //         ->orderByDesc('id')
-    //         ->get();
+         $validator = Validator::make($r->all(), [
+        'name'                 => 'required|string|max:120',
+        'email'                => 'required|email',
+        'relationship_type_id' => 'required|integer|exists:relationship_type,id', // <-- plural
+        'phone'                => 'nullable|string|max:40',
+        'trigger_type_id'      => 'required|integer|exists:trigger_type,id',     // <-- plural
+        'personal_message'     => 'nullable|string',
+        'journal_ids'          => 'required|array|min:1',
+        'journal_ids.*'        => 'required|integer|distinct|exists:journals,id', // distinct helps
+        'passkey'              => 'required|string|min:6|max:32',
+    ]);
 
-    //     return response()->json(['status'=>200,'nok'=>$list]);
-    // }
+        
+           if ($validator->fails()) {
+        return response()->json([
+            'status' => 422,
+            'errors' => $validator->errors(),
+        ], 422);
+    }
+     
+      $data = $validator->validated();
+        if (isset($data['journal_ids'])) {
+            $owned = Journals::whereIn('id', $data['journal_ids'])
+                ->where('user_id', $user->id)->count();
+            if ($owned !== count($data['journal_ids'])) {
+                return response()->json(['status'=>403,'message'=>'journal_ownership_mismatch'], 403);
+            }
+            $nok->journals()->sync($data['journal_ids']);
+            unset($data['journal_ids']);
+        }
+
+        if (isset($data['passkey'])) {
+            $data['passkey_hash'] = Hash::make($data['passkey']);
+            unset($data['passkey']);
+        }
+
+        $nok->update($data);
+        return response()->json(['status'=>200,'message'=>'updated']);
+    }
+
+    // List for owner
+    public function getnexofkin(Request $r)
+    {
+        $user = JWTAuth::parseToken()->authenticate();
+        $list = JournalNextOfKin::with(['relationship','trigger','journals:id,title'])
+            ->where('user_id', $user->id)
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json(['status'=>200,'nok'=>$list]);
+    }
 
     // Ensure/create a permanent invite token on the NOK row
     private function ensureInviteToken(JournalNextOfKin $nok): string
