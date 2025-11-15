@@ -90,7 +90,7 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::post('/updatenok/{id}', [JournalNextOfKinController::class,'updatenexofkin']);
     Route::post('/accessnok', [JournalNextOfKinController::class,'access']);
     //delete nok
-    Route::post('/deletenok', [JournalNextOfKinController::class,'access']);
+    Route::get('/deletenok/{id}', [JournalNextOfKinController::class,'destroy']);
 
 
     //meta 
