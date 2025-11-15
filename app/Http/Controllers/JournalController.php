@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\JournalNextOfKin;
+
 use JWTAuth;
 
 class JournalController extends Controller
@@ -429,43 +431,36 @@ public function deleteJournal(Request $request)
 
     $validator = Validator::make($request->all(), [
         'journal_id' => 'required|integer|exists:journals,id',
-        'hard'       => 'sometimes|boolean', // optional: force hard delete (bypass soft-deletes)
+        'hard'       => 'sometimes|boolean',
     ]);
 
     if ($validator->fails()) {
-        return response()->json(['status' => 422, 'errors' => $validator->errors()], 422);
+        return response()->json(['status'=>422,'errors'=>$validator->errors()],422);
     }
 
-    // Ensure journal belongs to user
-    $journal = Journals::where('id', $request->journal_id)
-        ->where('user_id', $userId)
+    $journal = Journals::where('id',$request->journal_id)
+        ->where('user_id',$userId)
         ->first();
 
     if (!$journal) {
-        return response()->json(['status' => 403, 'message' => 'forbidden'], 403);
+        return response()->json(['status'=>403,'message'=>'forbidden'],403);
     }
 
     $usesSoftDeletesJournal = in_array(SoftDeletes::class, class_uses_recursive(get_class($journal)));
-    $forceDelete            = (bool) $request->boolean('hard', false);
+    $forceDelete = (bool)$request->boolean('hard',false);
 
-    $basePath = storage_path('app/journal_attachments'); // encrypted, non-public
-    $totalDeletedFiles   = 0;
+    $basePath = storage_path('app/journal_attachments');
+    $totalDeletedFiles = 0;
     $totalDeletedEntries = 0;
 
     DB::beginTransaction();
     try {
-        // Stream (chunk) through entries to delete attachments + entries
-        JournalEntry::where('journal_id', $journal->id)
-            ->select('id') // keep it lean
-            ->chunkById(200, function ($entries) use (
-                &$totalDeletedFiles,
-                &$totalDeletedEntries,
-                $basePath
-            ) {
+        // Delete attachments + entries
+        JournalEntry::where('journal_id',$journal->id)
+            ->select('id')
+            ->chunkById(200,function($entries) use (&$totalDeletedFiles,&$totalDeletedEntries,$basePath){
                 $entryIds = $entries->pluck('id')->all();
-
-                // Fetch attachments for these entries
-                $attachments = JournalAttachment::whereIn('entry_id', $entryIds)->get();
+                $attachments = JournalAttachment::whereIn('entry_id',$entryIds)->get();
 
                 foreach ($attachments as $att) {
                     $filePath = $basePath . DIRECTORY_SEPARATOR . $att->stored_name;
@@ -475,59 +470,76 @@ public function deleteJournal(Request $request)
                             $totalDeletedFiles++;
                         }
                     } catch (\Throwable $e) {
-                        \Log::warning('Attachment unlink failed', [
-                            'entry_id' => $att->entry_id,
-                            'file'     => $filePath,
-                            'error'    => $e->getMessage()
+                        Log::warning('Attachment unlink failed', [
+                            'entry_id'=>$att->entry_id,
+                            'file'=>$filePath,
+                            'error'=>$e->getMessage()
                         ]);
                     }
-                    // Remove attachment row
                     $att->delete();
                 }
 
-                // Delete entries (soft or hard depending on model)
-                // Detect SoftDeletes usage on JournalEntry model from first row (or via class directly)
                 $entryModel = new JournalEntry;
                 $usesSoftDeletesEntry = in_array(SoftDeletes::class, class_uses_recursive(get_class($entryModel)));
 
-                if ($usesSoftDeletesEntry && request()->boolean('hard', false)) {
-                    JournalEntry::whereIn('id', $entryIds)->forceDelete();
+                if ($usesSoftDeletesEntry && request()->boolean('hard',false)) {
+                    JournalEntry::whereIn('id',$entryIds)->forceDelete();
                 } else {
-                    JournalEntry::whereIn('id', $entryIds)->delete();
+                    JournalEntry::whereIn('id',$entryIds)->delete();
                 }
 
                 $totalDeletedEntries += count($entryIds);
             });
 
-        // Finally delete the journal row
+        /**
+         * 🧩 Handle Next of Kin cleanup
+         * 1️⃣ Find all NOKs linked to this journal in pivot table
+         * 2️⃣ Detach this journal from them
+         * 3️⃣ If an NOK has no remaining journals, delete that NOK
+         */
+        $linkedNoks = JournalNextOfKin::whereHas('journals', function($q) use ($journal) {
+            $q->where('journal_id', $journal->id);
+        })->get();
+
+        foreach ($linkedNoks as $nok) {
+            $nok->journals()->detach($journal->id); // remove link for this journal
+            // Check if NOK has any journals left
+            if ($nok->journals()->count() === 0) {
+                $nok->delete();
+                Log::info("Deleted NOK {$nok->id} because all linked journals were removed.");
+            }
+        }
+
+        // Finally delete the journal
         if ($usesSoftDeletesJournal && $forceDelete) {
             $journal->forceDelete();
         } else {
-            $journal->delete(); // soft if enabled; hard if not
+            $journal->delete();
         }
 
         DB::commit();
 
         return response()->json([
-            'status'               => 200,
-            'message'              => $forceDelete ? 'journal_deleted_permanently' : 'journal_deleted',
-            'journal_id'           => (int) $request->journal_id,
-            'entries_removed'      => $totalDeletedEntries,
-            'attachments_removed'  => $totalDeletedFiles,
+            'status'              => 200,
+            'message'             => $forceDelete ? 'journal_deleted_permanently' : 'journal_deleted',
+            'journal_id'          => (int)$request->journal_id,
+            'entries_removed'     => $totalDeletedEntries,
+            'attachments_removed' => $totalDeletedFiles,
+            'noks_removed'        => $linkedNoks->count(),
         ], 200);
 
     } catch (\Throwable $e) {
         DB::rollBack();
-        \Log::error('deleteJournal failed', [
-            'journal_id' => $request->journal_id,
-            'error'      => $e->getMessage()
+        Log::error('deleteJournal failed', [
+            'journal_id'=>$request->journal_id,
+            'error'=>$e->getMessage()
         ]);
 
         return response()->json([
-            'status'  => 500,
-            'message' => 'delete_failed',
-            'error'   => $e->getMessage()
-        ], 500);
+            'status'=>500,
+            'message'=>'delete_failed',
+            'error'=>$e->getMessage()
+        ],500);
     }
 }
 
