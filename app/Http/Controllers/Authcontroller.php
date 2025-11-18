@@ -302,6 +302,7 @@ public function getnotifications(Request $request){
 
 
 public function touchLastActive(Request $r)
+
     {
         $user = JWTAuth::parseToken()->authenticate();
 
@@ -316,7 +317,30 @@ public function touchLastActive(Request $r)
         ], 204);
     }
 
+//update notification status
+public function updateNotificationstatus(Request $r, $id){
+    if($id != 0 || $id !=1){
+           return response()->json([
+            'message' => "Invalide boolean type passed",
+        ], 400);
+    }
 
+     $user = JWTAuth::parseToken()->authenticate();
+
+     
+     User::where("id",$user->id)->update([
+          "notification_status"=>$id
+     ]);
+
+     UserAffirmationPref::where("user_id", $user->id)->update([
+        "active"=>0
+     ]);
+
+      return response()->json([
+            'message' => "Success",
+        ], 200);
+
+}
 
 }
 
