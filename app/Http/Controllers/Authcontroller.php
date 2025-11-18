@@ -319,13 +319,8 @@ public function touchLastActive(Request $r)
 
 //update notification status
 public function updateNotificationstatus(Request $r, $id){
-    if($id != "0" || $id !="1"){
-           return response()->json([
-            'message' => "Invalide boolean type passed",
-        ], 400);
-    }
-
-     $user = JWTAuth::parseToken()->authenticate();
+    if($id == "0" || $id =="1"){
+           $user = JWTAuth::parseToken()->authenticate();
 
      
      User::where("id",$user->id)->update([
@@ -339,6 +334,13 @@ public function updateNotificationstatus(Request $r, $id){
       return response()->json([
             'message' => "Success",
         ], 200);
+    }
+
+
+      return response()->json([
+            'message' => "Invalide boolean type passed",
+        ], 400);
+   
 
 }
 

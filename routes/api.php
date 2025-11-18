@@ -82,7 +82,7 @@ Route::group(['middleware'=>['auth.customer']], function(){
     // Attachments streaming
     Route::get('/journals/attachment/{attachmentId}', [JournalController::class, 'streamAttachment']);
     // Generate & schedule for the current user (on-demand)
-    Route::post('update_notification/{id}', [Authcontroller::class, 'updateNotificationstatus']);
+    Route::post('/update_notification/{id}', [Authcontroller::class, 'updateNotificationstatus']);
     //
     
     //next of kin
