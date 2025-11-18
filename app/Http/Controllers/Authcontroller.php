@@ -339,6 +339,7 @@ public function updateNotificationstatus(Request $r, $id){
 
       return response()->json([
             'message' => "Invalide boolean type passed",
+            'id'=>$id
         ], 400);
    
 
