@@ -319,7 +319,7 @@ public function touchLastActive(Request $r)
 
 //update notification status
 public function updateNotificationstatus(Request $r, $id){
-    if($id != 0 || $id !=1){
+    if($id != "0" || $id !="1"){
            return response()->json([
             'message' => "Invalide boolean type passed",
         ], 400);
