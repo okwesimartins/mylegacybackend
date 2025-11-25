@@ -180,6 +180,7 @@ class JournalNextOfKinController extends Controller
             'relationship_type_id' => $nok->relationship_type_id,
             'status'           => $nok->status,
             'delivered_at'     => $nok->delivered_at,
+            'personal_message' => $nok->personal_message,
             'journals'         => $journals,
         ];
     })->values();
@@ -202,9 +203,9 @@ class JournalNextOfKinController extends Controller
 {
     $owner = $nok->user_id ? User::find($nok->user_id) : null;
     $invite = $this->ensureInviteToken($nok);
-
+    $ownername = $owner->name;
     $base = rtrim(env('NOK_LINK_BASE', 'https://mylegacyjournals.app/backend/links/nok/access'), '/');
-    $deepLink = $base . '?invite=' . urlencode($invite);
+    $deepLink = $base . '?invite=' . urlencode($invite) . '?name=' . $ownername;
 
     // Get all journals + decrypted entries
     $journalMeta = $nok->journals()

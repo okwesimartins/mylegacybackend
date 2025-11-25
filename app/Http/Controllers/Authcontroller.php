@@ -222,7 +222,28 @@ public function getusersProfile(Request $request)
     ]);
 }
 
+//update users 
+public function updateUserprofileinfo(Request $request){
+    $user = JWTAuth::parseToken()->authenticate();
+    
+      $v = Validator::make($request->all(), [
+            'name'       => 'required',
+            'phone_number' => 'required'
+        ]);
 
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+
+        User::where("id", $user->id)->update([
+          "name"=>$request->name,
+          "phone_number"=>$request->phone_number,
+        ]);
+    
+    return response()->json([
+        "message"     => "updated successfully"
+    ]);
+}
 
 
 public function update_password_from_dashboard(Request $request){

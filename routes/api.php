@@ -62,6 +62,10 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::post('/devices/token', [AffirmationController::class, 'saveDeviceToken']);
     Route::post('reset_password_from_dashboard', [Authcontroller::class, 'update_password_from_dashboard']);
     Route::get('getusers_profile', [Authcontroller::class, 'getusersProfile']);
+
+    //update profile info
+    Route::post('/update_profile_info', [Authcontroller::class, 'updateUserprofileinfo']);
+    
     Route::get('getnotifications', [Authcontroller::class, 'getnotifications']);
 
     Route::get('/journal_template', [JournalController::class, 'getJournaltemplate']);
