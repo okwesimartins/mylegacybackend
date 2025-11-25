@@ -237,7 +237,7 @@ public function updateUserprofileinfo(Request $request){
 
         User::where("id", $user->id)->update([
           "name"=>$request->name,
-          "phone_number"=>$request->phone_number,
+          "phone"=>$request->phone_number,
         ]);
     
     return response()->json([
