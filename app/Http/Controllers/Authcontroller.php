@@ -275,8 +275,7 @@ public function updateUserprofileinfo(Request $request){
         ]);
 
         return response()->json([
-            'message'  => 'Security settings updated.',
-            'security' => (int) $user->security,
+            'message'  => 'Security settings updated.'
         ]);
     }
 
