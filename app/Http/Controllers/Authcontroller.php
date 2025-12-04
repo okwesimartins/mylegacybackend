@@ -216,9 +216,12 @@ public function getusersProfile(Request $request)
         ];
     }
 
+    $getusersecurity = User::where("id", $user->id)->first();
+
     return response()->json([
         "userinfo"     => $user,
-        "affirmations" => $affirmations
+        "affirmations" => $affirmations,
+        "Security" => $getusersecurity->security
     ]);
 }
 
@@ -245,7 +248,92 @@ public function updateUserprofileinfo(Request $request){
     ]);
 }
 
+//update passkey
+  public function updateSecurity(Request $request)
+    {   
 
+         $user = JWTAuth::parseToken()->authenticate();
+    
+      $v = Validator::make($request->all(), [
+            'pass_key'       => 'required',
+         
+        ]);
+
+          if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+       
+        // set security flag
+        $security = 1;
+
+        // hash the 4-digit pass key (never store it in plain text)
+        $pass_key = Hash::make($request->pass_key);
+        
+        User::where("id", $user->id)->update([
+          "security"=>$security,
+          "pass_key"=>$pass_key,
+        ]);
+
+        return response()->json([
+            'message'  => 'Security settings updated.',
+            'security' => (int) $user->security,
+        ]);
+    }
+
+     public function updateSecuritystatus(Request $request)
+    {   
+
+         $user = JWTAuth::parseToken()->authenticate();
+       
+        // set security flag
+        $security = 0;
+        
+        User::where("id", $user->id)->update([
+          "security"=>$security,
+          
+        ]);
+
+        return response()->json([
+            'message'  => 'Security settings updated.'
+        ]);
+    }
+
+  public function validatePassKey(Request $request)
+    {
+       $user = JWTAuth::parseToken()->authenticate();
+    
+      $v = Validator::make($request->all(), [
+            'pass_key'       => 'required',
+         
+        ]);
+
+          if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+       
+        $userinfo = User::where('id', $user->id)->first();
+        // If user has no pass_key set yet
+        if (!$userinfo->pass_key) {
+            return response()->json([
+                'valid'   => false,
+                'message' => 'Pass key not set for this account.',
+            ], 400);
+        }
+
+        $isValid = Hash::check($request->pass_key, $userinfo->pass_key);
+
+        return response()->json([
+            'valid'   => $isValid,
+            'message' => $isValid ? 'Pass key is correct.' : 'Pass key is incorrect.',
+        ]);
+    }
+
+
+
+
+
+
+    
 public function update_password_from_dashboard(Request $request){
                $validator = Validator::make($request->all(), [
                 'password' => 'required|string|min:6|confirmed',

@@ -97,6 +97,13 @@ Route::group(['middleware'=>['auth.customer']], function(){
     //delete nok
     Route::get('/deletenok/{id}', [JournalNextOfKinController::class,'destroy']);
 
+    
+    //updateSecurity
+       Route::post('/update_security', [Authcontroller::class, 'updateSecurity']);
+
+       Route::post('/update_securitystatus', [Authcontroller::class, 'updateSecuritystatus']);
+
+       Route::post('/validate_passkey', [Authcontroller::class, 'validatePassKey']);
 
     //meta 
     Route::get('/meta/relationships', [MetaDropdownController::class,'listRelationships']);
