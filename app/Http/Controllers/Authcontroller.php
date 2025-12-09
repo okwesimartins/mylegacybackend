@@ -80,10 +80,20 @@ class Authcontroller extends Controller
             return response()->json(['errors' => $v->errors()], 422);
         }
 
+
+
         $credentials = $request->only('email', 'password');
 
         if (! $token = JWTAuth::attempt($credentials)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
+        }
+ 
+           //confirm the account status
+     
+        $checkstatus = User::where('email', $request->email)->where('account_status',1)->first();
+
+        if(!$checkstatus){
+            return response()->json(['message' => 'User account disabled'], 400);
         }
 
         return response()->json([
@@ -92,7 +102,18 @@ class Authcontroller extends Controller
             'user'    => auth()->user()
         ],200);
     }
+    
+    //delete
 
+    public function deleteaccount(Request $request){
+           $user = JWTAuth::parseToken()->authenticate();
+
+           User::where('id',$user->id)->update([
+             "account_status"=> 0
+           ]);
+
+             return response()->json(['message' => 'User account disabled'], 200);
+    }
     /** REQUEST FORGOT PASSWORD OTP
      * Returns an encrypted token (contains otp + expiry + email)
      */

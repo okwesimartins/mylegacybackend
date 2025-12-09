@@ -87,7 +87,10 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::get('/journals/attachment/{attachmentId}', [JournalController::class, 'streamAttachment']);
     // Generate & schedule for the current user (on-demand)
     Route::post('/update_notification/{id}', [Authcontroller::class, 'updateNotificationstatus']);
-    //
+    
+    //delete user account
+     Route::post('/deleteaccount', [Authcontroller::class, 'deleteaccount']);
+    
     
     //next of kin
     Route::post('/createnok', [JournalNextOfKinController::class,'createnexofkin']);

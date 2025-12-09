@@ -67,7 +67,12 @@ class GoogleAuthController extends Controller
             ]);
             // Issue your app’s JWT
             $token = JWTAuth::fromUser($user);
+          
+             $checkstatus = User::where('email', $user->email)->where('account_status',1)->first();
 
+        if(!$checkstatus){
+            return response()->json(['message' => 'User account disabled'], 400);
+        }
             return response()->json([
                 'message' => 'Google auth success',
                 'token'   => $token,
