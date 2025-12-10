@@ -25,7 +25,7 @@ class AppleAuthController extends Controller
         }
 
         try{
-        $user = User::where('apple_id', $request->apple_id)->first();
+        $user = User::where('apple_id', $request->apple_id)->orWhere('email', $request->email)->first();
 
         if(!$user){
               $user =  User::create([
