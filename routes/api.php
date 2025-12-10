@@ -16,6 +16,9 @@ use App\Http\Controllers\MetaDropdownController;
 
 use App\Http\Controllers\JournalNextOfKinController;
 
+use App\Http\Controllers\AppleAuthController;
+
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -33,6 +36,7 @@ Route::post('register_user',[Authcontroller::class, 'register']);
 
 Route::post('login_user',[Authcontroller::class, 'login']);
 
+Route::post('/auth/apple', [AppleAuthController::class, 'verifyappleuser']);
 
 Route::post('/auth/google', [GoogleAuthController::class, 'verifyIdToken']);
 
