@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Carbon\Carbon;
-use Google\Client as GoogleClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -48,7 +47,7 @@ class AppleAuthController extends Controller
         }
 
          return response()->json([
-                'message' => 'Google auth success',
+                'message' => 'Apple auth success',
                 'token'   => $token,
                 'user'    => [
                     'id'     => $user->id,
