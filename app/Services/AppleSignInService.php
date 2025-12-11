@@ -45,7 +45,7 @@ class AppleSignInService
         throw new \Exception('Invalid issuer: ' . ($claims->iss ?? 'null'));
     }
 
-    $expectedAud = config('services.apple.client_id');
+    $expectedAud = "app.mylegacyjournals.mylegacyjournals";
     $tokenAud    = $claims->aud ?? null;
 
     if (!$tokenAud || $tokenAud !== $expectedAud) {
