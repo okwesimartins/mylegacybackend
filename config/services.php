@@ -34,6 +34,12 @@ return [
     'credentials' => [
         'file' => env('FIREBASE_CREDENTIALS'),
     ],
+     'apple' => [
+        'client_id'   => env('APPLE_CLIENT_ID'),
+        'team_id'     => env('APPLE_TEAM_ID'),
+        'key_id'      => env('APPLE_KEY_ID'),
+        'private_key' => env('APPLE_PRIVATE_KEY'),
+    ],
 ],
 
 
