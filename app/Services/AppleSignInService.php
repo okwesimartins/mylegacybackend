@@ -39,22 +39,26 @@ class AppleSignInService
         return $claims;
     }
 
-    protected function validateClaims(\stdClass $claims): void
-    {
-        // iss must be Apple's issuer
-        if (!isset($claims->iss) || $claims->iss !== 'https://appleid.apple.com') {
-            throw new Exception('Invalid issuer');
-        }
-
-        // aud must match your client_id / service_id
-        $expectedAud = config('services.apple.client_id');
-        if (!isset($claims->aud) || $claims->aud !== $expectedAud) {
-            throw new Exception('Invalid audience');
-        }
-
-        // exp must be in the future
-        if (!isset($claims->exp) || $claims->exp < time()) {
-            throw new Exception('Token has expired');
-        }
+  protected function validateClaims(\stdClass $claims): void
+{
+    if (!isset($claims->iss) || $claims->iss !== 'https://appleid.apple.com') {
+        throw new \Exception('Invalid issuer: ' . ($claims->iss ?? 'null'));
     }
+
+    $expectedAud = config('services.apple.client_id');
+    $tokenAud    = $claims->aud ?? null;
+
+    if (!$tokenAud || $tokenAud !== $expectedAud) {
+        // 👇 put both values into the error message
+        throw new \Exception(
+            'Invalid audience. token_aud=' . ($tokenAud ?? 'null') .
+            ' expected_aud=' . ($expectedAud ?? 'null')
+        );
+    }
+
+    if (!isset($claims->exp) || $claims->exp < time()) {
+        throw new \Exception('Token has expired');
+    }
+}
+
 }
