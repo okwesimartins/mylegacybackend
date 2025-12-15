@@ -99,9 +99,10 @@ public function cronGenerateToday()
 
         foreach ($userIds as $uid) {
             try {
-                $has = AffirmationInstance::where('user_id', $uid)
-                    ->whereDate('scheduled_at', $date->toDateString())
-                    ->exists();
+             $has = AffirmationInstance::where('user_id', $uid)
+    ->where('dispatch_status', 'pending')
+    ->whereDate('scheduled_at', '>=', $date->toDateString())
+    ->exists();
 
                 \Log::info('[AFFIRM CRON] user check', [
                     'user_id' => $uid,
@@ -258,54 +259,85 @@ public function cronGenerateToday()
      * GET /cron/affirmations/dispatch-due
      * IONOS cron: run every 5-15 minutes.
      */
-   public function cronDispatchDue()
+public function cronDispatchDue()
 {
-    $now = Carbon::now(config('app.timezone') ?: 'Africa/Lagos');
-    $due = AffirmationInstance::where('dispatch_status','pending')
-        ->where('scheduled_at','<=',DB::raw('CURRENT_TIMESTAMP()'))
+    $tz  = config('app.timezone') ?: 'Africa/Lagos';
+    $now = Carbon::now($tz);
+
+    // Only send items scheduled in a small window around "now"
+    $windowStart = $now->copy()->subMinutes(10); // past 10 minutes
+    $windowEnd   = $now->copy()->addMinute();    // tiny look-ahead
+
+    $due = AffirmationInstance::where('dispatch_status', 'pending')
+        ->whereBetween('scheduled_at', [$windowStart, $windowEnd])
+        ->orderBy('scheduled_at')
         ->limit(500)
         ->get();
 
-    
-    try{
-    $push = new FirebasePushService(); // simple instantiation
-
+    $push = new FirebasePushService();
     $sent = 0;
-    foreach ($due as $row) {
-        $token = UserDeviceToken::where('user_id',$row->user_id)
-            ->orderByDesc('id')
-            ->value('fcm_token');
 
-        if (!$token) {
-            $row->dispatch_status = 'no_token';
+    try {
+        foreach ($due as $row) {
+            $token = UserDeviceToken::where('user_id', $row->user_id)
+                ->orderByDesc('id')
+                ->value('fcm_token');
+
+            if (!$token) {
+                $row->dispatch_status = 'no_token';
+                $row->sent_at = $now;
+                $row->save();
+                continue;
+            }
+
+            try {
+                $ok = $push->sendToToken(
+                    $token,
+                    'Daily Affirmation',
+                    $row->text,
+                    ['instance_id' => (string) $row->id]
+                );
+            } catch (\Throwable $e) {
+                $ok = false;
+                \Log::error('FCM send error', [
+                    'e'        => $e->getMessage(),
+                    'instance' => $row->id
+                ]);
+            }
+
+            $row->dispatch_status = $ok ? 'sent' : 'error';
             $row->sent_at = $now;
             $row->save();
-            continue;
+
+            if ($ok) {
+                $sent++;
+            }
         }
 
-        try {
-            $ok = $push->sendToToken(
-                $token,
-                'Daily Affirmation',
-                $row->text,
-                ['instance_id' => (string)$row->id]
-            );
-        } catch (\Throwable $e) {
-            $ok = false;
-            \Log::error('FCM send error', ['e' => $e->getMessage(), 'instance' => $row->id]);
-        }
+        // Optional: mark very old pending instances as expired so they never blast later
+        $tooOldCutoff = $now->copy()->subHours(12);
+        AffirmationInstance::where('dispatch_status', 'pending')
+            ->where('scheduled_at', '<', $tooOldCutoff)
+            ->update([
+                'dispatch_status' => 'expired',
+                'sent_at'         => $now,
+            ]);
 
-        $row->dispatch_status = $ok ? 'sent' : 'error';
-        $row->sent_at = $now;
-        $row->save();
-        if ($ok) $sent++;
-    } 
-} catch (\Throwable $e) {
-            return response()->json(['message' => 'Google auth failed', 'error' => $e->getMessage()], 401);
-        }
+    } catch (\Throwable $e) {
+        \Log::error('[AFFIRM DISPATCH] fatal', ['error' => $e->getMessage()]);
+        return response()->json([
+            'message' => 'Dispatch failed',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
 
-    return response()->json(['message' => 'ok', 'sent' => $sent, 'checked' => $due->count()]);
+    return response()->json([
+        'message' => 'ok',
+        'sent'    => $sent,
+        'checked' => $due->count()
+    ]);
 }
+
 
     /**
      * Spacing algorithm:
@@ -313,33 +345,72 @@ public function cronGenerateToday()
      * - Adds a small per-category minute offset (stagger).
      * - Adds +/- jitter up to 5 minutes to avoid thundering herd.
      */
-    private function computeSchedule(Carbon $date, string $dayStart, string $dayEnd, int $timesPerDay, int $categoryId): array
-    {
-        $tz = config('app.timezone') ?: 'Africa/Lagos';
+private function computeSchedule(
+    Carbon $date,
+    string $dayStart,
+    string $dayEnd,
+    int $timesPerDay,
+    int $categoryId
+): array {
+    $tz  = config('app.timezone') ?: 'Africa/Lagos';
+    $now = Carbon::now($tz);
 
-        $start = Carbon::parse($date->toDateString().' '.$dayStart, $tz);
-        $end   = Carbon::parse($date->toDateString().' '.$dayEnd, $tz);
-        if ($end->lte($start)) $end = $end->copy()->addDay(); // handle crossing midnight
+    // Base window for this "day"
+    $start = Carbon::parse($date->toDateString() . ' ' . $dayStart, $tz);
+    $end   = Carbon::parse($date->toDateString() . ' ' . $dayEnd, $tz);
 
-        $totalSeconds = $end->diffInSeconds($start);
-        $interval = (int) floor($totalSeconds / $timesPerDay);
-        if ($interval < 300) $interval = 300; // min 5 minutes
-
-        $slots = [];
-        for ($i=0; $i<$timesPerDay; $i++) {
-            $t = $start->copy()->addSeconds($i * $interval);
-
-            // Stagger by category (mod 10 minutes), plus small jitter (+/- 2 minutes)
-            $staggerMin = $categoryId % 10;
-            $jitter     = rand(-120, 120); // seconds
-            $t->addMinutes($staggerMin)->addSeconds($jitter);
-
-            if ($t->gt($end)) $t = $end->copy()->subSeconds(30);
-            $slots[] = $t->toDateTimeString();
-        }
-        sort($slots);
-        return $slots;
+    // Handle crossing midnight
+    if ($end->lte($start)) {
+        $end->addDay();
     }
+
+    // If the whole window is already past, move schedule to tomorrow
+    if ($end->lte($now)) {
+        $start->addDay();
+        $end->addDay();
+    }
+
+    // If we are currently inside the window, start from just after "now"
+    if ($now->between($start, $end)) {
+        $start = $now->copy()->addMinute(); // start 1 minute in the future
+    }
+
+    $totalSeconds = max(1, $end->diffInSeconds($start));
+    $timesPerDay  = max(1, (int) $timesPerDay);
+
+    $interval = (int) floor($totalSeconds / $timesPerDay);
+    if ($interval < 300) {
+        $interval = 300; // min 5 minutes between sends
+    }
+
+    $slots = [];
+    for ($i = 0; $i < $timesPerDay; $i++) {
+        $t = $start->copy()->addSeconds($i * $interval);
+
+        // Stagger by category (0–9 mins) + jitter (~2 mins)
+        $staggerMin = $categoryId % 10;
+        $jitter     = random_int(-120, 120); // seconds
+
+        $t->addMinutes($staggerMin)->addSeconds($jitter);
+
+        // Don’t go beyond window end
+        if ($t->gt($end)) {
+            $t = $end->copy()->subSeconds(30);
+        }
+
+        // Final safety: never schedule in the past
+        if ($t->lte($now)) {
+            $t = $now->copy()->addMinutes(1 + $i);
+        }
+
+        $slots[] = $t->toDateTimeString();
+    }
+
+    sort($slots);
+
+    return $slots;
+}
+
 
     /**
      * Call Cloud Run AI microservice
