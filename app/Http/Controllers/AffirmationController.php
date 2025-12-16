@@ -86,12 +86,16 @@ public function cronGenerateToday()
 {
     $tz   = config('app.timezone') ?: 'Africa/Lagos';
     $date = Carbon::today($tz);
+    $todayStr = $date->toDateString();
 
     try {
-        $userIds = UserAffirmationPref::where('active', 1)->distinct()->pluck('user_id');
+        $userIds = UserAffirmationPref::where('active', 1)
+            ->distinct()
+            ->pluck('user_id');
+
         \Log::info('[AFFIRM CRON] start', [
-            'tz' => $tz,
-            'date' => $date->toDateString(),
+            'tz'         => $tz,
+            'date'       => $todayStr,
             'user_count' => $userIds->count()
         ]);
 
@@ -99,20 +103,24 @@ public function cronGenerateToday()
 
         foreach ($userIds as $uid) {
             try {
-             $has = AffirmationInstance::where('user_id', $uid)
-    ->where('dispatch_status', 'pending')
-    ->whereDate('scheduled_at', '>=', $date->toDateString())
-    ->exists();
+                // ✅ KEY FIX: only check "do we already have *any* instances for today?"
+                $has = AffirmationInstance::where('user_id', $uid)
+                    ->whereDate('scheduled_at', $todayStr)
+                    ->exists();
 
                 \Log::info('[AFFIRM CRON] user check', [
-                    'user_id' => $uid,
-                    'has_today' => $has
+                    'user_id'   => $uid,
+                    'has_today' => $has,
                 ]);
 
-                if ($has) continue; // already scheduled for today
+                if ($has) {
+                    // already generated today's schedule for this user
+                    continue;
+                }
 
                 $prefs = UserAffirmationPref::where('user_id', $uid)
-                    ->where('active', 1)->get();
+                    ->where('active', 1)
+                    ->get();
 
                 if ($prefs->isEmpty()) {
                     \Log::info('[AFFIRM CRON] user has no active prefs', ['user_id' => $uid]);
@@ -120,42 +128,60 @@ public function cronGenerateToday()
                 }
 
                 $catIds = $prefs->pluck('category_id')->all();
-                $cats   = AffirmationCategory::whereIn('id', $catIds)->get(['id','name','slug']);
-                $countPerCategory = max(1, (int)$prefs->max('times_per_day'));
+                $cats   = AffirmationCategory::whereIn('id', $catIds)
+                    ->get(['id', 'name', 'slug']);
+
+                // max times_per_day across this user's prefs
+                $countPerCategory = max(1, (int) $prefs->max('times_per_day'));
 
                 \Log::info('[AFFIRM CRON] pref summary', [
-                    'user_id' => $uid,
-                    'pref_count' => $prefs->count(),
-                    'cat_ids' => $catIds,
-                    'countPerCategory' => $countPerCategory
+                    'user_id'          => $uid,
+                    'pref_count'       => $prefs->count(),
+                    'cat_ids'          => $catIds,
+                    'countPerCategory' => $countPerCategory,
                 ]);
 
                 $aiResp = $this->callAiService($cats->toArray(), $countPerCategory);
 
                 if (!is_array($aiResp)) {
-                    \Log::warning('[AFFIRM CRON] AI bad shape', ['user_id'=>$uid, 'aiResp_type' => gettype($aiResp)]);
-                    continue;
-                }
-                if ($aiResp['error'] ?? false) {
-                    \Log::warning('[AFFIRM CRON] AI error flag', ['user_id'=>$uid, 'ai_error' => $aiResp['error']]);
+                    \Log::warning('[AFFIRM CRON] AI bad shape', [
+                        'user_id'     => $uid,
+                        'aiResp_type' => gettype($aiResp),
+                    ]);
                     continue;
                 }
 
-                \Log::info('[AFFIRM CRON] AI raw', ['user_id'=>$uid, 'aiResp' => $aiResp]);
+                if ($aiResp['error'] ?? false) {
+                    \Log::warning('[AFFIRM CRON] AI error flag', [
+                        'user_id'  => $uid,
+                        'ai_error' => $aiResp['error'],
+                    ]);
+                    continue;
+                }
+
+                \Log::info('[AFFIRM CRON] AI raw', [
+                    'user_id' => $uid,
+                    'aiResp'  => $aiResp,
+                ]);
 
                 // Normalize AI response -> map of catId => [items...]
                 $normMap = collect($aiResp)->mapWithKeys(function ($row) {
                     $cidRaw = $row['category_id'] ?? null;
                     if ($cidRaw === null) return [];
 
-                    $cid = (int) $cidRaw;
-
+                    $cid   = (int) $cidRaw;
                     $items = $row['items'] ?? [];
+
                     if (is_string($items)) {
                         $items = preg_split("/\r?\n/", $items);
-                        $items = array_values(array_filter(array_map('trim', $items), fn($s) => $s !== ''));
+                        $items = array_values(
+                            array_filter(
+                                array_map('trim', $items),
+                                fn ($s) => $s !== ''
+                            )
+                        );
                     } elseif (!is_array($items)) {
-                        $items = $items ? [(string)$items] : [];
+                        $items = $items ? [(string) $items] : [];
                     }
 
                     return [$cid => $items];
@@ -163,45 +189,71 @@ public function cronGenerateToday()
 
                 \Log::info('[AFFIRM CRON] normalized map', [
                     'user_id' => $uid,
-                    'keys' => $normMap->keys()->all()
+                    'keys'    => $normMap->keys()->all(),
                 ]);
 
                 DB::transaction(function () use ($prefs, $cats, $date, $uid, $normMap, &$createdTotals) {
+                    $todayStrInner = $date->toDateString();
 
                     foreach ($prefs as $pref) {
                         $catId = (int) $pref->category_id;
+                        $tpd   = (int) $pref->times_per_day ?: 1;
+
+                        // extra defensive check per category per day (prevents weird duplicates)
+                        $existingCount = AffirmationInstance::where('user_id', $uid)
+                            ->where('category_id', $catId)
+                            ->whereDate('scheduled_at', $todayStrInner)
+                            ->count();
+
+                        if ($existingCount >= $tpd) {
+                            \Log::info('[AFFIRM CRON] skip category; already have enough for today', [
+                                'user_id'      => $uid,
+                                'category_id'  => $catId,
+                                'tpd'          => $tpd,
+                                'existing_cnt' => $existingCount,
+                            ]);
+                            continue;
+                        }
+
+                        $missing = $tpd - $existingCount;
+                        if ($missing <= 0) {
+                            continue;
+                        }
 
                         $items = $normMap->get($catId, []);
 
-                        // pad/trim to times_per_day
+                        // pad/trim to at least $missing items
                         if (empty($items)) {
                             $items = ['You matter. Keep going.'];
                         }
-                        $tpd = (int) $pref->times_per_day ?: 1;
-                        if (count($items) < $tpd) {
+
+                        // ensure we have at least $missing texts
+                        if (count($items) < $missing) {
                             $i = 0;
-                            while (count($items) < $tpd) {
+                            while (count($items) < $missing) {
                                 $items[] = $items[$i % max(1, count($items))];
                                 $i++;
                             }
-                        } elseif (count($items) > $tpd) {
-                            $items = array_slice($items, 0, $tpd);
+                        } elseif (count($items) > $missing) {
+                            $items = array_slice($items, 0, $missing);
                         }
 
+                        // compute schedule ONLY for missing slots
                         $slots = $this->computeSchedule(
                             $date,
                             $pref->day_start,
                             $pref->day_end,
-                            $tpd,
+                            $missing,
                             $catId
                         );
 
                         \Log::info('[AFFIRM CRON] schedule', [
-                            'user_id' => $uid,
+                            'user_id'     => $uid,
                             'category_id' => $catId,
-                            'tpd' => $tpd,
-                            'slots' => $slots,
-                            'items' => $items
+                            'tpd'         => $tpd,
+                            'missing'     => $missing,
+                            'slots'       => $slots,
+                            'items'       => $items,
                         ]);
 
                         for ($i = 0; $i < count($slots); $i++) {
@@ -214,22 +266,21 @@ public function cronGenerateToday()
                                 'dispatch_status' => 'pending',
                                 'meta'            => json_encode([
                                     'source'        => 'ai',
-                                    'category_name' => optional($cats->firstWhere('id', $catId))->name
-                                ])
+                                    'category_name' => optional($cats->firstWhere('id', $catId))->name,
+                                ]),
                             ];
 
-                            // Try/catch each insert to capture exact error
                             try {
                                 AffirmationInstance::create($row);
                                 $createdTotals++;
                             } catch (\Throwable $ex) {
                                 \Log::error('[AFFIRM CRON] insert failed', [
-                                    'user_id' => $uid,
+                                    'user_id'     => $uid,
                                     'category_id' => $catId,
-                                    'error' => $ex->getMessage(),
-                                    'row' => $row
+                                    'error'       => $ex->getMessage(),
+                                    'row'         => $row,
                                 ]);
-                                throw $ex; // rethrow to rollback if one fails
+                                throw $ex;
                             }
                         }
                     }
@@ -238,9 +289,8 @@ public function cronGenerateToday()
             } catch (\Throwable $inner) {
                 \Log::error('[AFFIRM CRON] user loop error', [
                     'user_id' => $uid,
-                    'error' => $inner->getMessage()
+                    'error'   => $inner->getMessage(),
                 ]);
-                // continue to next user
             }
         }
 
@@ -249,9 +299,13 @@ public function cronGenerateToday()
 
     } catch (\Throwable $e) {
         \Log::error('[AFFIRM CRON] fatal', ['error' => $e->getMessage()]);
-        return response()->json(['message' => 'error', 'error' => $e->getMessage()], 500);
+        return response()->json([
+            'message' => 'error',
+            'error'   => $e->getMessage(),
+        ], 500);
     }
 }
+
 
 
 
