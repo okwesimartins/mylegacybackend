@@ -54,6 +54,36 @@ class User extends Authenticatable implements JWTSubject
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+   
+    // app/Models/User.php
+public function subscription()
+{
+    return $this->hasOne(\App\Models\Subscription::class);
+}
+
+public function currentPlan(): \App\Models\Plan
+{
+    $sub = $this->subscription;
+    if ($sub && $sub->isActive() && $sub->plan) {
+        return $sub->plan;
+    }
+    return \App\Models\Plan::free();
+}
+
+public function isPremium(): bool
+{
+    return $this->currentPlan()->slug === 'premium';
+}
+
+public function hasFeature(string $key): bool
+{
+    return $this->currentPlan()->hasFeature($key);
+}
+
+public function featureLimit(string $key, $default = null)
+{
+    return $this->currentPlan()->limit($key, $default);
+}
 
     public function getJWTIdentifier()
         {
