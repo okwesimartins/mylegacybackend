@@ -12,7 +12,11 @@ class Journals extends Model
     protected $fillable = [
        'user_id', 'name','template_id',
     ];
-
+    
+    public function user()
+{
+    return $this->belongsTo(\App\Models\User::class, 'user_id');
+}
       public function entries()
     {
         return $this->hasMany(JournalEntry::class, 'journal_id');

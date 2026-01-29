@@ -18,7 +18,7 @@ use App\Http\Controllers\JournalNextOfKinController;
 
 use App\Http\Controllers\AppleAuthController;
 
-
+use App\Http\Controllers\AppUpdateConfigController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -52,6 +52,8 @@ Route::post('reset_password', [Authcontroller::class, 'resetForgottenPassword'])
 Route::get('getuser_for_ai', [Authcontroller::class, 'getuserinfoForai']);
 
 
+Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
+
 //Route::group(['middleware'=>['auth.role:admins']], function(){
     //  Route::get('get_text',[Authcontroller::class, 'text']);
     
@@ -81,7 +83,7 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::post('delete/journals', [JournalController::class, 'deleteJournal']);
     
     // Entries
-    Route::post('/journals/entry', [JournalController::class, 'saveJournalEntry']);
+    Route::post('/journals/entry', [JournalController::class, 'saveJournalEntry'])->middleware(['attach.plan', 'feature:next_of_kin.create']);;
     Route::get('/journals/{journalId}/entries', [JournalController::class, 'getJournalEntries']);
     
     //Delete journal entries 
@@ -97,7 +99,7 @@ Route::group(['middleware'=>['auth.customer']], function(){
     
     
     //next of kin
-    Route::post('/createnok', [JournalNextOfKinController::class,'createnexofkin']);
+    Route::post('/createnok', [JournalNextOfKinController::class,'createnexofkin'])->middleware(['attach.plan', 'feature:next_of_kin.create']);;
     Route::get('/nok', [JournalNextOfKinController::class,'getnexofkin']);
     Route::post('/updatenok/{id}', [JournalNextOfKinController::class,'updatenexofkin']);
     Route::post('/accessnok', [JournalNextOfKinController::class,'access']);
@@ -118,6 +120,22 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::get('/meta/triggers', [MetaDropdownController::class,'listTriggers']);
     
     Route::post('/me/last-active', [Authcontroller::class, 'touchLastActive']);
+
+    //update app
+    Route::post('/app-update-config', [AppUpdateConfigController::class, 'upsert']);
+    Route::get('/app-update-config/{type}', [AppUpdateConfigController::class, 'getByType']);
+
+
+    //payment
+        // 1) Returns Free + Premium feature list (for pricing page/UI)
+    Route::get('/plans', [SubscriptionController::class, 'plans']);
+
+    // 2) Returns current user subscription status (free/premium, expiry, etc.)
+    Route::get('/subscription/me', [SubscriptionController::class, 'me'])->middleware(['attach.plan']);
+
+    // 3) Creates Stripe checkout session + returns payment URL
+    // body: { cycle: monthly|annual, currency: usd|gbp, success_url, cancel_url }
+    Route::post('/subscription/checkout', [SubscriptionController::class, 'createCheckout'])->middleware(['attach.plan']);;
     //Route::post('/affirmations/generate-and-schedule', [AffirmationController::class, 'generateAndScheduleForUser']);
 });
 

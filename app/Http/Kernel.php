@@ -66,5 +66,7 @@ class Kernel extends HttpKernel
         'auth.role'=>\App\Http\Middleware\RoleAuthorization::class,
         'auth.customer'=>\App\Http\Middleware\Customersauthorization::class,
         'auth.superadmin'=>\App\Http\Middleware\Superadmin::class,
+        'attach.plan' => \App\Http\Middleware\AttachUserPlan::class,
+        'feature'     => \App\Http\Middleware\EnsureFeatureAccess::class,
     ];
 }

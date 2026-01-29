@@ -1,0 +1,128 @@
+[33mf74f7310[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: reset: moving to origin/main
+[33m0f0e5c06[m HEAD@{1}: commit: new
+[33mdb1dfbb9[m HEAD@{2}: reset: moving to HEAD~1
+[33mae0f143e[m HEAD@{3}: commit: new
+[33mdb1dfbb9[m HEAD@{4}: commit: new
+[33m4c842d5e[m HEAD@{5}: commit: new
+[33mf74f7310[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{6}: commit: new
+[33m034c8f1c[m HEAD@{7}: commit: new
+[33m98ae4e73[m HEAD@{8}: commit: new
+[33mdf19c4c2[m HEAD@{9}: commit: new
+[33m354b627e[m HEAD@{10}: commit: new
+[33m74c3d72b[m HEAD@{11}: commit: new
+[33m30f81ccf[m HEAD@{12}: commit: new
+[33m98f67e8f[m HEAD@{13}: commit: new
+[33md9ea9cda[m HEAD@{14}: commit: new
+[33m7088809c[m HEAD@{15}: commit: new
+[33me2508371[m HEAD@{16}: commit: new
+[33me7fce4be[m HEAD@{17}: commit: new
+[33m56618e2d[m HEAD@{18}: commit: new
+[33m7bd788ca[m HEAD@{19}: commit: new
+[33me0685c8c[m HEAD@{20}: commit: new
+[33me3d463e4[m HEAD@{21}: commit: new
+[33mf07d3a00[m HEAD@{22}: commit: new
+[33m556fab93[m HEAD@{23}: commit: new
+[33m50de2807[m HEAD@{24}: commit: new
+[33m3e0ccc79[m HEAD@{25}: commit: new
+[33m046d0d1b[m HEAD@{26}: commit: new
+[33m5a95a92a[m HEAD@{27}: commit: new
+[33mc66647db[m HEAD@{28}: commit: new
+[33ma89b4b13[m HEAD@{29}: commit: new
+[33m28e544d1[m HEAD@{30}: commit: new
+[33m5e81a6a3[m HEAD@{31}: commit: new
+[33m4042088b[m HEAD@{32}: commit: new
+[33m603c96ec[m HEAD@{33}: commit: new
+[33m3dc8dd60[m HEAD@{34}: commit: new
+[33m722ebd92[m HEAD@{35}: commit: new
+[33md658c6f2[m HEAD@{36}: commit: new
+[33mbe20f4f4[m HEAD@{37}: commit: new
+[33m69d81e2f[m HEAD@{38}: commit: new
+[33m5d4f3e53[m HEAD@{39}: commit: new
+[33m35af8ed5[m HEAD@{40}: commit: new
+[33mdfe07aed[m HEAD@{41}: commit: new
+[33me6a85cc1[m HEAD@{42}: commit: new
+[33m2e9870ee[m HEAD@{43}: commit: new
+[33md6f4822f[m HEAD@{44}: commit: new
+[33mcd49cedf[m HEAD@{45}: commit: new
+[33m0388a932[m HEAD@{46}: commit: new
+[33m704cc46b[m HEAD@{47}: commit: new
+[33mcae80592[m HEAD@{48}: commit: new
+[33mfc34c0d7[m HEAD@{49}: commit: new
+[33me411e60a[m HEAD@{50}: commit: new
+[33m76723240[m HEAD@{51}: commit: new
+[33mffd2c441[m HEAD@{52}: commit: new
+[33m8b2e9319[m HEAD@{53}: commit: new
+[33m8cfbf4e6[m HEAD@{54}: commit: new
+[33m269a53e8[m HEAD@{55}: commit: new
+[33m0b784d23[m HEAD@{56}: commit: new
+[33mceac2b8c[m HEAD@{57}: commit: new
+[33m7f0a5aa7[m HEAD@{58}: commit: new
+[33m34569aa7[m HEAD@{59}: commit: new
+[33m3c941760[m HEAD@{60}: commit: Remove wrong-cased Journalcontroller.php from repo
+[33m7e7e789f[m HEAD@{61}: checkout: moving from main to main
+[33m7e7e789f[m HEAD@{62}: commit: new
+[33mf113a494[m HEAD@{63}: commit: new
+[33m27402d46[m HEAD@{64}: commit: new
+[33mcebd019e[m HEAD@{65}: commit: new
+[33m8d0b48fd[m HEAD@{66}: commit: new
+[33m6fae196d[m HEAD@{67}: commit: new
+[33m0c1034ce[m HEAD@{68}: commit: new
+[33m2ab1d864[m HEAD@{69}: commit: new
+[33m2471c7c5[m HEAD@{70}: commit: new
+[33m69abfa2f[m HEAD@{71}: commit: new
+[33m68b2f940[m HEAD@{72}: commit: new
+[33m1051fd43[m HEAD@{73}: commit: new
+[33mdf494c2f[m HEAD@{74}: commit: new
+[33ma25fcea0[m HEAD@{75}: commit: new
+[33mac3d460a[m HEAD@{76}: commit: new
+[33mee14f9d4[m HEAD@{77}: commit: new
+[33m492fa039[m HEAD@{78}: commit: new
+[33mfadaaf3a[m HEAD@{79}: commit: new
+[33m82a76fb1[m HEAD@{80}: commit: new
+[33m736d2fd0[m HEAD@{81}: commit: new
+[33mc8fe337d[m HEAD@{82}: commit: new
+[33m0278da18[m HEAD@{83}: commit: new
+[33m7df98d5e[m HEAD@{84}: commit: new
+[33m872dee61[m HEAD@{85}: commit: new
+[33mf077b34b[m HEAD@{86}: commit: new
+[33mb8cfef25[m HEAD@{87}: commit: new
+[33m62e4403d[m HEAD@{88}: commit: new
+[33m646275fc[m HEAD@{89}: commit: new
+[33mef021175[m HEAD@{90}: commit: new
+[33m5688023f[m HEAD@{91}: commit: new
+[33mc858be81[m HEAD@{92}: commit: new
+[33mdf47be6f[m HEAD@{93}: commit: new
+[33m83b96a7c[m HEAD@{94}: commit: new
+[33mb69e5112[m HEAD@{95}: commit: new
+[33me5d0824f[m HEAD@{96}: commit: new
+[33m08eebe4b[m HEAD@{97}: commit: new
+[33m0a7e5f04[m HEAD@{98}: commit: new
+[33mc3f20152[m HEAD@{99}: commit: new
+[33me9eb66d5[m HEAD@{100}: commit: new
+[33m2178a386[m HEAD@{101}: commit: new
+[33mecd22379[m HEAD@{102}: commit: new
+[33ma34b522b[m HEAD@{103}: commit: new
+[33mf3f11f83[m HEAD@{104}: commit: new
+[33m8693c68a[m HEAD@{105}: commit: new
+[33m413e89f6[m HEAD@{106}: commit: new
+[33m898f49e9[m HEAD@{107}: commit: new
+[33mc12d748e[m HEAD@{108}: commit: new
+[33m7f801156[m HEAD@{109}: commit: new
+[33mafdc9a79[m HEAD@{110}: commit: new
+[33mb8b04900[m HEAD@{111}: commit: new
+[33mc0a46bf1[m HEAD@{112}: commit: new
+[33m02e5d8e3[m HEAD@{113}: commit: new
+[33mc33c6f22[m HEAD@{114}: commit: new
+[33mbcc7b8f9[m HEAD@{115}: commit: new
+[33m08250b99[m HEAD@{116}: commit: new
+[33m18e50263[m HEAD@{117}: pull --rebase origin main (finish): returning to refs/heads/main
+[33m18e50263[m HEAD@{118}: pull --rebase origin main (pick): new
+[33m394b04da[m HEAD@{119}: pull --rebase origin main (start): checkout 394b04da2bd261098d0c992efbfcb582865b7afa
+[33md9c59e3c[m HEAD@{120}: commit (merge): new
+[33mb388b5aa[m HEAD@{121}: commit: new
+[33mbc437047[m HEAD@{122}: commit: update
+[33m91471c60[m HEAD@{123}: pull --rebase origin main (finish): returning to refs/heads/main
+[33m91471c60[m HEAD@{124}: pull --rebase origin main (pick): firstcommit
+[33m8f07b891[m HEAD@{125}: pull --rebase origin main (start): checkout 8f07b8917f5c357edbbc60a4016855e8e321ab22
+[33mfd5d6538[m HEAD@{126}: Branch: renamed refs/heads/master to refs/heads/main
+[33mfd5d6538[m HEAD@{128}: commit (initial): firstcommit
