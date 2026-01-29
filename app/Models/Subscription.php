@@ -8,7 +8,7 @@ use Illuminate\Support\Carbon;
 
 class Subscription extends Model
 {    
-    protected $table = 'subscription';
+    protected $table = 'subscriptions';
     protected $fillable = [
         'user_id','plan_id',
         'stripe_customer_id','stripe_subscription_id',
