@@ -83,7 +83,7 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::post('delete/journals', [JournalController::class, 'deleteJournal']);
     
     // Entries
-    Route::post('/journals/entry', [JournalController::class, 'saveJournalEntry'])->middleware(['attach.plan', 'feature:next_of_kin.create']);;
+    Route::post('/journals/entry', [JournalController::class, 'saveJournalEntry'])->middleware(['attach.plan', 'feature:journal_entry.save']);;
     Route::get('/journals/{journalId}/entries', [JournalController::class, 'getJournalEntries']);
     
     //Delete journal entries 
