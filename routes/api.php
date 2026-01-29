@@ -19,6 +19,10 @@ use App\Http\Controllers\JournalNextOfKinController;
 use App\Http\Controllers\AppleAuthController;
 
 use App\Http\Controllers\AppUpdateConfigController;
+
+use App\Http\Controllers\SubscriptionController;
+
+use App\Http\Controllers\StripeWebhookController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
