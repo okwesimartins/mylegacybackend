@@ -4,22 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\AppUpdateConfig;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Validator;
 class AppUpdateConfigController extends Controller
 {
     // POST: create/update config by type (android/ios)
     public function upsert(Request $request)
     {
-        $data = $request->validate([
-            'type'           => ['required', 'string', 'max:50'],
-            'currentVersion' => ['required', 'string', 'max:30'],
-            'minimumVersion' => ['required', 'string', 'max:30'],
-            'forceUpdate'    => ['required', 'boolean'],
-            'updateMessage'  => ['nullable', 'string'],
-            'storeUrl'       => ['nullable', 'url'],
-            'releaseDate'    => ['nullable', 'date'],
+        $data = Validator::make($request->all(), [
+            'type'           => 'required|string|max:150',
+            'currentVersion' => 'required|string|max:150',
+            'minimumVersion' => 'required|string|max:150',
+            'forceUpdate'    => 'required|boolean',
+            'updateMessage'  => 'nullable|string',
+            'storeUrl'       => 'nullable',
+            'releaseDate'    => 'nullable|date',
         ]);
 
+         if ($data->fails()) {
+
+            return response()->json(['errors' => $v->errors()], 422);
+        }
         $record = AppUpdateConfig::updateOrCreate(
             ['type' => $data['type']],
             [
