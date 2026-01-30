@@ -35,6 +35,7 @@ class User extends Authenticatable implements JWTSubject
         'pass_key',
         'security',
         'account_status',
+        'stripe_customer_id',
     ];
 
     /**
