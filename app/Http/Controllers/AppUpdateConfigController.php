@@ -22,7 +22,7 @@ class AppUpdateConfigController extends Controller
 
          if ($data->fails()) {
 
-            return response()->json(['errors' => $v->errors()], 422);
+            return response()->json(['errors' => $data->errors()], 422);
         }
         $record = AppUpdateConfig::updateOrCreate(
             ['type' => $data['type']],
