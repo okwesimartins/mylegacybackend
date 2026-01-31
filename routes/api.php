@@ -58,6 +58,7 @@ Route::get('getuser_for_ai', [Authcontroller::class, 'getuserinfoForai']);
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
 
+Route::post('/app-update-config', [AppUpdateConfigController::class, 'upsert']);
 //Route::group(['middleware'=>['auth.role:admins']], function(){
     //  Route::get('get_text',[Authcontroller::class, 'text']);
     
@@ -126,7 +127,7 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::post('/me/last-active', [Authcontroller::class, 'touchLastActive']);
 
     //update app
-    Route::post('/app-update-config', [AppUpdateConfigController::class, 'upsert']);
+    
     Route::get('/app-update-config/{type}', [AppUpdateConfigController::class, 'getByType']);
 
 
