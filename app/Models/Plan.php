@@ -79,4 +79,24 @@ class Plan extends Model
             'premium' => $mapPlan($plans['premium'] ?? null),
         ];
     }
+
+    public static function findByStripePriceId(string $priceId): ?self
+{
+    // plans.stripe_prices stored like:
+    // {"usd":{"monthly":"price_x","annual":"price_y"}, "gbp":{...}}
+    $plans = static::query()->get();
+
+    foreach ($plans as $plan) {
+        $prices = $plan->stripe_prices ?? [];
+        foreach ($prices as $currency => $cycles) {
+            if (!is_array($cycles)) continue;
+            foreach ($cycles as $cycle => $pid) {
+                if ($pid === $priceId) return $plan;
+            }
+        }
+    }
+
+    return null;
+}
+
 }

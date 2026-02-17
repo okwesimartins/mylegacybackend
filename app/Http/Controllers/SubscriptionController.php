@@ -17,34 +17,31 @@ class SubscriptionController extends Controller
         ]);
     }
 
-    public function createCheckout(Request $request, StripeService $stripe)
-    {
-        $validator = Validator::make($request->all(), [
-            'cycle'       => 'required|in:monthly,annual',
-            'currency'    => 'required|in:usd,gbp',
-            'success_url' => 'required|url',
-            'cancel_url'  => 'required|url',
-        ]);
+   public function createSubscriptionIntent(Request $request, StripeService $stripe)
+{
+    $validator = Validator::make($request->all(), [
+        'cycle'    => 'required|in:monthly,annual',
+        'currency' => 'required|in:usd,gbp',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $data = $validator->validated();
-
-        // ✅ JWT user
-        $user = JWTAuth::parseToken()->authenticate();
-
-        $session = $stripe->createPremiumCheckout(
-            $user,
-            $data['cycle'],
-            $data['currency'],
-            $data['success_url'],
-            $data['cancel_url']
-        );
-
-        return response()->json($session, 200);
+    if ($validator->fails()) {
+        return response()->json(['errors' => $validator->errors()], 422);
     }
+
+    $data = $validator->validated();
+
+    // ✅ JWT user
+    $user = JWTAuth::parseToken()->authenticate();
+
+    $payload = $stripe->createPremiumSubscriptionIntent(
+        $user,
+        $data['cycle'],
+        $data['currency']
+    );
+
+    return response()->json($payload, 200);
+}
+
 
     public function me(Request $request)
     {

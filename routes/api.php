@@ -56,7 +56,7 @@ Route::post('reset_password', [Authcontroller::class, 'resetForgottenPassword'])
 Route::get('getuser_for_ai', [Authcontroller::class, 'getuserinfoForai']);
 
 
-Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
+Route::get('/stripe/webhook', [StripeWebhookController::class, 'handle']);
 
 Route::post('/app-update-config', [AppUpdateConfigController::class, 'upsert']);
 //Route::group(['middleware'=>['auth.role:admins']], function(){
@@ -140,7 +140,7 @@ Route::group(['middleware'=>['auth.customer']], function(){
 
     // 3) Creates Stripe checkout session + returns payment URL
     // body: { cycle: monthly|annual, currency: usd|gbp, success_url, cancel_url }
-    Route::post('/subscription/checkout', [SubscriptionController::class, 'createCheckout'])->middleware(['attach.plan']);;
+    Route::post('/subscription/checkout', [SubscriptionController::class, 'createSubscriptionIntent'])->middleware(['attach.plan']);;
     //Route::post('/affirmations/generate-and-schedule', [AffirmationController::class, 'generateAndScheduleForUser']);
 });
 
