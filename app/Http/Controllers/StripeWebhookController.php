@@ -24,7 +24,7 @@ class StripeWebhookController extends Controller
             $event = Webhook::constructEvent(
                 $payload,
                 $sigHeader,
-                config('services.stripe.webhook_secret')
+                'whsec_nAlWJeuHURjWDG9VVB3Bqq1P4MCiWAWX'
             );
         } catch (SignatureVerificationException $e) {
             Log::warning('[StripeWebhook] Invalid signature', ['err' => $e->getMessage()]);

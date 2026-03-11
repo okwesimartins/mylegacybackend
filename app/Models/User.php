@@ -7,7 +7,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
-
+use Illuminate\Support\Carbon;
 class User extends Authenticatable implements JWTSubject
 {
     use  Notifiable;
@@ -36,6 +36,9 @@ class User extends Authenticatable implements JWTSubject
         'security',
         'account_status',
         'stripe_customer_id',
+        'trial_starts_at',
+        'trial_ends_at'
+
     ];
 
     /**
@@ -52,9 +55,11 @@ class User extends Authenticatable implements JWTSubject
      *
      * @var array<string, string>
      */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-    ];
+   protected $casts = [
+  'email_verified_at' => 'datetime',
+  'trial_starts_at'   => 'datetime',
+  'trial_ends_at'     => 'datetime',
+];
    
     // app/Models/User.php
 public function subscription()
@@ -73,7 +78,9 @@ public function currentPlan(): \App\Models\Plan
 
 public function isPremium(): bool
 {
-    return $this->currentPlan()->slug === 'premium';
+  // true premium means paid sub, not trial
+  $sub = $this->subscription;
+  return $sub && $sub->isActive() && $sub->plan && $sub->plan->slug === 'premium';
 }
 
 public function hasFeature(string $key): bool
@@ -94,4 +101,43 @@ public function featureLimit(string $key, $default = null)
         {
             return [];
         }
+
+public function isOnTrial(): bool
+{
+  if (!$this->trial_ends_at) return false;
+  return Carbon::now()->lt($this->trial_ends_at);
+}
+
+public function ensureTrialIfMissing(int $days = 7): void
+{
+  // Only grant once
+  if ($this->trial_ends_at) return;
+
+  $now = Carbon::now();
+  $this->trial_starts_at = $now;
+  $this->trial_ends_at   = $now->copy()->addDays($days);
+  $this->save();
+}
+
+/**
+ * Effective plan:
+ * - Active subscription => premium
+ * - Trial active => premium-like access
+ * - Otherwise => free
+ */
+public function effectivePlan(): \App\Models\Plan
+{
+  $sub = $this->subscription;
+
+  if ($sub && $sub->isActive() && $sub->plan) {
+    return $sub->plan;
+  }
+
+  if ($this->isOnTrial()) {
+    return \App\Models\Plan::premium();
+  }
+
+  return \App\Models\Plan::free();
+}
+        
 }
