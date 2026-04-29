@@ -84,7 +84,7 @@ Route::group(['middleware'=>['auth.customer']], function(){
     Route::post('/journals', [JournalController::class, 'saveJournal']);
     
     Route::get('/journals', [JournalController::class, 'getJournals']);
-    
+     
     Route::post('delete/journals', [JournalController::class, 'deleteJournal']);
     
     // Entries
@@ -142,6 +142,10 @@ Route::group(['middleware'=>['auth.customer']], function(){
     // body: { cycle: monthly|annual, currency: usd|gbp, success_url, cancel_url }
     Route::post('/subscription/checkout', [SubscriptionController::class, 'createSubscriptionIntent'])->middleware(['attach.plan']);;
     //Route::post('/affirmations/generate-and-schedule', [AffirmationController::class, 'generateAndScheduleForUser']);
+  
+
+    Route::get('/getnextstatic/affirmation', [AffirmationController::class, 'getNextStaticAffirmationForDispatch']);
+    
 });
 
 Route::get('/cron/nok-dispatch', [CronController::class, 'dispatchNoKInvites']);
@@ -149,5 +153,8 @@ Route::get('/cron/nok-dispatch', [CronController::class, 'dispatchNoKInvites']);
 // CRON (public or protect with a secret query param)
 Route::get('/cron/affirmations/generate-today', [AffirmationController::class, 'cronGenerateToday']);
 Route::get('/cron/affirmations/dispatch-due', [AffirmationController::class, 'cronDispatchDue']);
+
+Route::get('/cron/affirmations/dispatch-static-due', [AffirmationController::class, 'cronGenerateAndDispatchStaticAffirmations']);
+
 
 

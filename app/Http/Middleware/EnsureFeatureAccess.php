@@ -46,7 +46,7 @@ class EnsureFeatureAccess
         // Premium allows everything
        if ($user->isOnTrial() || $plan->slug === 'premium') {
   return $next($request);
-}
+   }
         // Free plan enforcement
         switch ($ability) {
 

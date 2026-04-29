@@ -95,7 +95,7 @@ class JournalController extends Controller
     {
         $user = JWTAuth::parseToken()->authenticate();
         $userId = $user->id;
-
+        
         $validator = Validator::make($request->all(), [
             'journal_id'      => 'required|integer|exists:journals,id',
             'entry_id'        => 'nullable|integer|exists:journal_entries,id',

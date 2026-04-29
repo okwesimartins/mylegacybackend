@@ -68,6 +68,7 @@ class Authcontroller extends Controller
         ], 201);
     }
 
+
     /** LOGIN (JWT) */
     public function login(Request $request)
     {
@@ -89,7 +90,7 @@ class Authcontroller extends Controller
         }
  
            //confirm the account status
-     
+        
         $checkstatus = User::where('email', $request->email)->where('account_status',1)->first();
 
         if(!$checkstatus){
